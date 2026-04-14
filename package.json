@@ -4,6 +4,10 @@
   "description": "Fresh isolated agent runs for pi",
   "type": "module",
   "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "license": "MIT",
   "keywords": [
     "pi-package",
@@ -26,6 +30,7 @@
     "@sinclair/typebox": "*"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.4"
   }
 }
