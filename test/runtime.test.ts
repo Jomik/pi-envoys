@@ -75,21 +75,21 @@ describe("spawnRun", () => {
 // ── listRuns ──
 
 describe("listRuns", () => {
-  it("returns empty for fresh store", () => {
-    expect(runtime.listRuns()).toEqual([]);
+  it("returns empty for fresh store", async () => {
+    expect(await runtime.listRuns()).toEqual([]);
   });
 
   it("lists spawned runs from disk", async () => {
     await runtime.spawnRun({ prompt: "a" });
     await runtime.spawnRun({ prompt: "b" });
-    const runs = runtime.listRuns();
+    const runs = await runtime.listRuns();
     expect(runs).toHaveLength(2);
     expect(runs.every((r) => r.status === "running")).toBe(true);
   });
 
   it("returns correct fields", async () => {
     const out = await runtime.spawnRun({ prompt: "test", model: "m1" });
-    const [entry] = runtime.listRuns();
+    const [entry] = await runtime.listRuns();
     expect(entry.runId).toBe(out.runId);
     expect(entry.name).toBe(out.name);
     expect(entry.status).toBe("running");
@@ -97,6 +97,17 @@ describe("listRuns", () => {
     expect(entry.runDir).toBe(out.runDir);
     expect(entry.startedAt).toBeDefined();
     expect(entry.lastActivityAt).toBeDefined();
+  });
+
+  it("reconciles stale running status", async () => {
+    const out = await runtime.spawnRun({ prompt: "will crash" });
+    const status = readStatus(out.runDir)!;
+    launcher.kill(status.pid!);
+
+    // listRuns should reconcile — the dead run should be failed, not running
+    const runs = await runtime.listRuns();
+    expect(runs).toHaveLength(1);
+    expect(runs[0].status).toBe("failed");
   });
 });
 

@@ -87,9 +87,15 @@ function getPiInvocation(args: string[]): { command: string; args: string[] } {
  *
  * Requires `extensionDir` — the directory containing this extension's source,
  * used to resolve the `-e` path for the child process.
+ *
+ * `getPiInvocation` resolves the pi CLI correctly when running inside a pi
+ * process. For testing outside pi, pass an explicit `piCommand` override.
  */
 export class PiLauncher implements EnvoyLauncher {
-  constructor(private readonly extensionDir: string) {}
+  constructor(
+    private readonly extensionDir: string,
+    private readonly piCommand?: { command: string; args: string[] },
+  ) {}
 
   async launch(request: RequestFile, runDir: string): Promise<LaunchResult> {
     const piArgs: string[] = [
@@ -110,7 +116,9 @@ export class PiLauncher implements EnvoyLauncher {
     // Dummy prompt — the real prompt comes from request.json via the input event
     piArgs.push(".");
 
-    const invocation = getPiInvocation(piArgs);
+    const invocation = this.piCommand
+      ? { command: this.piCommand.command, args: [...this.piCommand.args, ...piArgs] }
+      : getPiInvocation(piArgs);
 
     const stderrFd = openSync(stderrLogPath(runDir), "w");
 

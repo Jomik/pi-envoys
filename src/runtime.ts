@@ -98,14 +98,21 @@ export class EnvoyRuntime {
 
   // ── list ──
 
-  listRuns(): ListEnvoysEntry[] {
+  async listRuns(): Promise<ListEnvoysEntry[]> {
     const ids = listRunIds(this.storeRoot);
     const entries: ListEnvoysEntry[] = [];
 
     for (const runId of ids) {
       const runDir = join(this.storeRoot, runId);
-      const status = readStatus(runDir);
-      if (!status) continue; // corrupt / incomplete run dir
+      // Reconcile each run to ensure status reflects reality
+      let status: StatusFile | undefined;
+      try {
+        status = await this.reconcileRun(runId);
+      } catch {
+        // reconcile failed (e.g. corrupt run dir) — try raw read
+        status = readStatus(runDir) ?? undefined;
+      }
+      if (!status) continue;
 
       entries.push({
         runId: status.runId,
