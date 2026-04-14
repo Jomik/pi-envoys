@@ -1,0 +1,31 @@
+{
+  "name": "@jomik/pi-envoys",
+  "version": "0.1.0",
+  "description": "Fresh isolated agent runs for pi",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "envoys",
+    "agent-runs",
+    "subagents"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-agent-core": "*",
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
