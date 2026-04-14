@@ -1,4 +1,8 @@
+import { spawn } from "node:child_process";
+import { existsSync, openSync } from "node:fs";
+import { join } from "node:path";
 import type { RequestFile } from "./types.js";
+import { stderrLogPath } from "./store.js";
 
 // ── Launcher interface ──
 
@@ -52,5 +56,95 @@ export class FakeLauncher implements EnvoyLauncher {
   /** Test helper: simulate process death */
   kill(pid: number): void {
     this.alivePids.delete(pid);
+  }
+}
+
+// ── PiLauncher (production) ──
+
+/**
+ * Resolve the `pi` CLI invocation.
+ * Follows the subagent `getPiInvocation` pattern:
+ * - If running inside a pi process, re-use process.execPath + process.argv[1]
+ * - Otherwise fall back to bare "pi" binary
+ */
+function getPiInvocation(args: string[]): { command: string; args: string[] } {
+  const currentScript = process.argv[1];
+  if (currentScript && existsSync(currentScript)) {
+    return { command: process.execPath, args: [currentScript, ...args] };
+  }
+
+  const execName = (process.execPath.split("/").pop() ?? "").toLowerCase();
+  const isGenericRuntime = /^(node|bun)(\.exe)?$/.test(execName);
+  if (!isGenericRuntime) {
+    return { command: process.execPath, args };
+  }
+
+  return { command: "pi", args };
+}
+
+/**
+ * Real launcher that spawns a detached `pi` subprocess.
+ *
+ * Requires `extensionDir` — the directory containing this extension's source,
+ * used to resolve the `-e` path for the child process.
+ */
+export class PiLauncher implements EnvoyLauncher {
+  constructor(private readonly extensionDir: string) {}
+
+  async launch(request: RequestFile, runDir: string): Promise<LaunchResult> {
+    const piArgs: string[] = [
+      "-p",
+      "--no-session",
+      "--no-extensions",
+      "--no-skills",
+      "--no-prompt-templates",
+      "--no-themes",
+      "-e", join(this.extensionDir, "index.ts"),
+      "--envoy", runDir,
+    ];
+
+    if (request.model) {
+      piArgs.push("--model", request.model);
+    }
+
+    // Dummy prompt — the real prompt comes from request.json via the input event
+    piArgs.push(".");
+
+    const invocation = getPiInvocation(piArgs);
+
+    const stderrFd = openSync(stderrLogPath(runDir), "w");
+
+    const child = spawn(invocation.command, invocation.args, {
+      detached: true,
+      stdio: ["ignore", "ignore", stderrFd],
+      cwd: request.cwd ?? process.cwd(),
+      env: { ...process.env },
+    });
+
+    const pid = child.pid;
+    if (pid == null) {
+      throw new Error("Failed to spawn child process: no pid returned");
+    }
+
+    child.unref();
+
+    return { pid };
+  }
+
+  isAlive(pid: number): boolean {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  sendSignal(pid: number, signal: "SIGTERM" | "SIGKILL"): void {
+    try {
+      process.kill(pid, signal);
+    } catch {
+      // Process already dead
+    }
   }
 }
