@@ -93,8 +93,12 @@ Removes a terminal envoy from the local run store.
 Preconditions:
 - the run must be in a terminal state
 
+`remove_envoy` must reconcile the run before checking the precondition. A subprocess may have exited without the on-disk status reflecting that. Without reconciliation, crashed or completed runs whose `status.json` still reads `running` would be incorrectly rejected.
+
 Behavior:
-- delete the run record and run directory for the specified `runId`
+- reconcile the run's on-disk state with process liveness
+- if the run is still non-terminal after reconciliation, reject the request
+- otherwise delete the run record and run directory for the specified `runId`
 
 `remove_envoy` must not stop running work implicitly.
 
@@ -193,6 +197,33 @@ State is file-backed so callers can inspect runs without attaching to a live pro
 ### Results
 
 The core primitive does not auto-deliver results into a parent session. Callers inspect run state and outputs explicitly.
+
+## Reconciliation
+
+On-disk status may become stale. A subprocess can exit (crash, signal, clean exit) while `status.json` still reads `running`. Reconciliation resolves this by comparing persisted state with process liveness.
+
+Reconciliation is an internal mechanism, not a public API operation. It runs automatically as part of `list_envoys`, `stop_envoy`, and `remove_envoy`.
+
+### Rules
+
+Given a run whose `status.json` reads `running`:
+
+1. **Process alive**: status remains `running`.
+2. **Process dead, `result.json` exists**: adopt the terminal status from `result.json` into `status.json`.
+3. **Process dead, no `result.json` yet**: the process may have exited before finishing file writes. Wait a bounded period for `result.json` to appear. If it appears, apply rule 2. If the wait expires, fall through to rule 4.
+4. **Process dead, no terminal artifacts**:
+   - if the parent previously sent a termination signal as part of `stop_envoy`, mark `stopped`.
+   - otherwise mark `failed`.
+
+A stop having been *requested* is not sufficient evidence for `stopped`. The parent must have actually sent a termination signal.
+
+### Bounded wait
+
+The finalization wait in rule 3 must be bounded. The implementation defines the maximum wait duration and polling interval. Unbounded or indefinite polling is not permitted.
+
+### Consistency
+
+Reconciliation must not transition a run that is already in a terminal state. Terminal states are final.
 
 ## Non-goals
 
