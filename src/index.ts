@@ -4,8 +4,7 @@ import { RecorderCore } from "./recorder-core.js";
 import { PiLauncher } from "./process.js";
 import { EnvoyRuntime } from "./runtime.js";
 import { resolveRunStoreRoot } from "./store.js";
-import type { ListEnvoysEntry, SpawnEnvoyOutput } from "./types.js";
-import type { StatusFile } from "./types.js";
+import type { GetEnvoyOutput, ListEnvoysEntry, SpawnEnvoyOutput, WaitEnvoysOutput } from "./types.js";
 
 /**
  * @jomik/pi-envoys
@@ -48,8 +47,8 @@ function registerTools(pi: ExtensionAPI): void {
     promptGuidelines: [
       "Envoys run in isolated subprocesses with no access to this conversation's context.",
       "Envoy prompts must be fully self-contained: include all file paths, requirements, and relevant context.",
-      "Use envoys for independent, parallelizable work. Spawn multiple envoys for tasks that don't depend on each other.",
-      "After spawning, poll with list_envoys until status is terminal, then use get_envoy to read the result.",
+      "Use envoys for independent, parallelizable work. Call spawn_envoy once per task, then pass all runIds to wait_envoys.",
+      "Use wait_envoys when you need results before continuing. Use list_envoys and get_envoy when you can do other work while envoys run.",
       "Do not spawn an envoy for work that depends on another envoy's output. Wait for the first to complete, inspect its result, then proceed.",
     ],
     parameters: Type.Object({
@@ -87,8 +86,8 @@ function registerTools(pi: ExtensionAPI): void {
     description: "List known envoy runs from the local run store.",
     promptSnippet: "list_envoys: list known envoy runs and their statuses",
     promptGuidelines: [
-      "Use list_envoys to poll envoy progress after spawning. A run is done when its status is completed, failed, or stopped.",
-      "To inspect an envoy's output, use get_envoy with its runId.",
+      "Use list_envoys for an overview of all envoy runs. For waiting on specific runs, prefer wait_envoys.",
+      "To inspect a specific envoy's output, use get_envoy with its runId.",
     ],
     parameters: Type.Object({}),
     async execute() {
@@ -158,6 +157,70 @@ function registerTools(pi: ExtensionAPI): void {
       return {
         content: [{ type: "text", text: lines.join("\n") }],
         details: info,
+      };
+    },
+  });
+
+  // ── wait_envoys ──
+
+  pi.registerTool({
+    name: "wait_envoys",
+    label: "Wait Envoys",
+    description:
+      "Block until one or all specified envoys reach a terminal state. Returns the full state of all specified runs.",
+    promptSnippet: "wait_envoys: block until envoys complete, fail, or stop",
+    promptGuidelines: [
+      'Use wait_envoys with mode "all" after spawning multiple envoys that you need results from before continuing.',
+      'Use mode "any" when you only need the first result to proceed.',
+      "Prefer wait_envoys over polling with list_envoys in a loop — it blocks cleanly without adding tool calls to the context.",
+    ],
+    parameters: Type.Object({
+      runIds: Type.Array(Type.String(), { description: "Run IDs to wait on" }),
+      mode: Type.Union([Type.Literal("all"), Type.Literal("any")], {
+        description: '"all" waits for every run; "any" waits for the first',
+      }),
+      timeout: Type.Optional(
+        Type.Number({ description: "Max seconds to wait (default: 600)", default: 600 }),
+      ),
+    }),
+    async execute(_toolCallId, params, signal, onUpdate) {
+      const timeoutMs = (params.timeout ?? 600) * 1000;
+
+      const result = await runtime.waitRuns(
+        params.runIds,
+        params.mode,
+        timeoutMs,
+        signal ?? undefined,
+        (current) => {
+          // Stream progress to UI without entering LLM context
+          const summary = current.map(
+            (r) => `${r.name} (${r.runId}): ${r.status}  activity: ${r.lastActivityAt}`,
+          );
+          onUpdate?.({
+            content: [{ type: "text", text: summary.join("\n") }],
+            details: { timedOut: false, results: current } satisfies WaitEnvoysOutput,
+          });
+        },
+      );
+
+      // Format final output
+      const lines: string[] = [];
+      if (result.timedOut) lines.push("\u26a0 Wait timed out. Returning current state.\n");
+
+      for (const r of result.results) {
+        lines.push(`${r.name} (${r.runId}): ${r.status}`);
+        if (r.result?.finalText) {
+          lines.push(r.result.finalText);
+        }
+        if (r.result?.errorMessage) {
+          lines.push(`Error: ${r.result.errorMessage}`);
+        }
+        lines.push("");
+      }
+
+      return {
+        content: [{ type: "text", text: lines.join("\n").trim() }],
+        details: result,
       };
     },
   });

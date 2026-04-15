@@ -17,6 +17,7 @@ const FAST_TIMINGS = {
   finalizeWaitMs: 500,
   finalizePollMs: 20,
   stopPollMs: 20,
+  waitPollMs: 50,
 };
 
 let tmpRoot: string;
@@ -305,5 +306,140 @@ describe("reconcileRun", () => {
 
     const reconciled = await runtime.reconcileRun(out.runId);
     expect(reconciled.status).toBe("failed");
+  });
+});
+
+// ── waitRuns ──
+
+describe("waitRuns", () => {
+  it("mode all: returns when all runs are terminal", async () => {
+    const a = await runtime.spawnRun({ prompt: "a" });
+    const b = await runtime.spawnRun({ prompt: "b" });
+    const pidA = readStatus(a.runDir)!.pid!;
+    const pidB = readStatus(b.runDir)!.pid!;
+
+    // Kill both immediately
+    launcher.kill(pidA);
+    launcher.kill(pidB);
+
+    const result = await runtime.waitRuns(
+      [a.runId, b.runId], "all", 5_000,
+    );
+
+    expect(result.timedOut).toBe(false);
+    expect(result.results).toHaveLength(2);
+    expect(result.results.every((r) => r.status !== "running")).toBe(true);
+  });
+
+  it("mode any: returns when first run is terminal", async () => {
+    const a = await runtime.spawnRun({ prompt: "a" });
+    const b = await runtime.spawnRun({ prompt: "b" });
+    const pidA = readStatus(a.runDir)!.pid!;
+
+    // Kill only the first
+    launcher.kill(pidA);
+
+    const result = await runtime.waitRuns(
+      [a.runId, b.runId], "any", 5_000,
+    );
+
+    expect(result.timedOut).toBe(false);
+    expect(result.results).toHaveLength(2);
+    // At least one is terminal
+    expect(result.results.some((r) => r.status !== "running")).toBe(true);
+  });
+
+  it("returns immediately when all runs already terminal", async () => {
+    const a = await runtime.spawnRun({ prompt: "done" });
+    launcher.kill(readStatus(a.runDir)!.pid!);
+
+    const start = Date.now();
+    const result = await runtime.waitRuns([a.runId], "all", 5_000);
+    const elapsed = Date.now() - start;
+
+    expect(result.timedOut).toBe(false);
+    expect(result.results[0].status).toBe("failed");
+    // Should return nearly instantly, not wait for poll interval
+    expect(elapsed).toBeLessThan(500);
+  });
+
+  it("times out when runs stay alive", async () => {
+    const a = await runtime.spawnRun({ prompt: "forever" });
+    // Don't kill — stays running
+
+    const result = await runtime.waitRuns([a.runId], "all", 200);
+
+    expect(result.timedOut).toBe(true);
+    expect(result.results[0].status).toBe("running");
+  });
+
+  it("respects abort signal", async () => {
+    const a = await runtime.spawnRun({ prompt: "long" });
+    const controller = new AbortController();
+
+    // Abort after 100ms
+    setTimeout(() => controller.abort(), 100);
+
+    const result = await runtime.waitRuns(
+      [a.runId], "all", 10_000, controller.signal,
+    );
+
+    // Should not be timedOut — was aborted
+    expect(result.timedOut).toBe(false);
+    expect(result.results[0].status).toBe("running");
+  });
+
+  it("calls onProgress during wait", async () => {
+    const a = await runtime.spawnRun({ prompt: "slow" });
+    const progressCalls: number[] = [];
+
+    // Kill after 150ms
+    setTimeout(() => launcher.kill(readStatus(a.runDir)!.pid!), 150);
+
+    await runtime.waitRuns(
+      [a.runId], "all", 5_000, undefined,
+      (current) => progressCalls.push(current.length),
+    );
+
+    expect(progressCalls.length).toBeGreaterThan(0);
+  });
+
+  it("mode all: waits for delayed completion", async () => {
+    const a = await runtime.spawnRun({ prompt: "a" });
+    const b = await runtime.spawnRun({ prompt: "b" });
+    const pidA = readStatus(a.runDir)!.pid!;
+    const pidB = readStatus(b.runDir)!.pid!;
+
+    // Kill first immediately, second after delay
+    launcher.kill(pidA);
+    setTimeout(() => launcher.kill(pidB), 200);
+
+    const result = await runtime.waitRuns(
+      [a.runId, b.runId], "all", 5_000,
+    );
+
+    expect(result.timedOut).toBe(false);
+    expect(result.results).toHaveLength(2);
+    expect(result.results.every((r) => r.status !== "running")).toBe(true);
+  });
+
+  it("includes full result data for terminal runs", async () => {
+    const a = await runtime.spawnRun({ prompt: "check result" });
+    const status = readStatus(a.runDir)!;
+
+    writeResult(a.runDir, {
+      runId: a.runId,
+      name: a.name,
+      status: "completed",
+      finishedAt: new Date().toISOString(),
+      exitCode: 0,
+      finalText: "Result here.",
+    });
+    launcher.kill(status.pid!);
+
+    const result = await runtime.waitRuns([a.runId], "all", 5_000);
+
+    expect(result.results[0].result).toBeDefined();
+    expect(result.results[0].result!.finalText).toBe("Result here.");
   });
 });

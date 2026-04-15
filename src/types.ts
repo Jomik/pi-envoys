@@ -133,3 +133,8 @@ export interface StopEnvoyInput {
 export interface RemoveEnvoyInput {
   runId: string;
 }
+
+export interface WaitEnvoysOutput {
+  timedOut: boolean;
+  results: GetEnvoyOutput[];
+}

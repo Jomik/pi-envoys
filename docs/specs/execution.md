@@ -100,6 +100,33 @@ Returns:
 
 `get_envoy` must reconcile the run before returning.
 
+### `wait_envoys`
+
+Blocks until one or all specified envoys reach a terminal state.
+
+Input:
+- `runIds` — array of run IDs to wait on
+- `mode` — `"all"` or `"any"`
+  - `all`: wait until every specified run is terminal
+  - `any`: wait until at least one specified run is terminal
+- optional `timeout` — maximum seconds to wait (default: 600)
+
+Behavior:
+- poll the specified runs internally until the mode condition is met or the timeout expires
+- stream progress updates to the UI via the tool update callback; these updates are visible to the user but do not enter the LLM context
+- on completion or timeout, return the current state of all specified runs
+- must respect the abort signal; if aborted, return whatever state is available
+
+Returns:
+- `timedOut` — whether the wait ended due to timeout
+- `results` — array of per-run entries, each containing the same fields as `get_envoy` output
+
+Postconditions:
+- no runs are stopped or modified by the wait itself
+- runs that were already terminal before the call are included immediately
+
+`wait_envoys` does not stop or clean up runs. It is a read-only blocking poll.
+
 ### `stop_envoy`
 
 Stops a running envoy identified by `runId`.

@@ -22,6 +22,7 @@ import type {
   SpawnEnvoyInput,
   SpawnEnvoyOutput,
   StatusFile,
+  WaitEnvoysOutput,
 } from "./types.js";
 import { canTransition, isTerminal } from "./types.js";
 
@@ -36,6 +37,8 @@ export interface RuntimeTimings {
   finalizePollMs: number;
   /** Poll interval (ms) to check liveness after SIGTERM */
   stopPollMs: number;
+  /** Poll interval (ms) for waitRuns */
+  waitPollMs: number;
 }
 
 export const DEFAULT_TIMINGS: RuntimeTimings = {
@@ -43,6 +46,7 @@ export const DEFAULT_TIMINGS: RuntimeTimings = {
   finalizeWaitMs: 3_000,
   finalizePollMs: 200,
   stopPollMs: 250,
+  waitPollMs: 2_000,
 };
 
 // ── Runtime ──
@@ -289,6 +293,61 @@ export class EnvoyRuntime {
       throw new Error(`Run ${runId}: cannot remove non-terminal run (status: ${reconciled.status})`);
     }
     removeRunDir(this.storeRoot, runId);
+  }
+
+  // ── wait ──
+
+  /**
+   * Block until one or all specified runs reach a terminal state.
+   *
+   * @param runIds - Run IDs to wait on
+   * @param mode - "all" waits for every run; "any" waits for the first
+   * @param timeoutMs - Max wait time in milliseconds
+   * @param signal - AbortSignal for cancellation
+   * @param onProgress - Called periodically with current state (for UI updates)
+   */
+  async waitRuns(
+    runIds: string[],
+    mode: "all" | "any",
+    timeoutMs: number,
+    signal?: AbortSignal,
+    onProgress?: (results: GetEnvoyOutput[]) => void,
+  ): Promise<WaitEnvoysOutput> {
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+      if (signal?.aborted) break;
+
+      const current = await this.getRunStates(runIds);
+
+      const terminalCount = current.filter((r) => isTerminal(r.status)).length;
+      const done =
+        mode === "all"
+          ? terminalCount === runIds.length
+          : terminalCount > 0;
+
+      onProgress?.(current);
+
+      if (done) {
+        return { timedOut: false, results: current };
+      }
+
+      // Poll interval — balance responsiveness vs disk I/O
+      const remaining = deadline - Date.now();
+      await sleep(Math.min(this.timings.waitPollMs, Math.max(0, remaining)));
+    }
+
+    // Timeout or aborted — return current state
+    const final = await this.getRunStates(runIds);
+    return { timedOut: !signal?.aborted, results: final };
+  }
+
+  private async getRunStates(runIds: string[]): Promise<GetEnvoyOutput[]> {
+    const results: GetEnvoyOutput[] = [];
+    for (const runId of runIds) {
+      results.push(await this.getRun(runId));
+    }
+    return results;
   }
 
   // ── Private helpers ──

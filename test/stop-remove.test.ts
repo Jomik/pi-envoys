@@ -11,6 +11,7 @@ const FAST_TIMINGS = {
   finalizeWaitMs: 500,
   finalizePollMs: 20,
   stopPollMs: 20,
+  waitPollMs: 50,
 };
 
 let tmpRoot: string;
