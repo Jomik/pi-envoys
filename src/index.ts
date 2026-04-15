@@ -4,6 +4,7 @@ import { RecorderCore } from "./recorder-core.js";
 import { PiLauncher } from "./process.js";
 import { EnvoyRuntime } from "./runtime.js";
 import { resolveRunStoreRoot } from "./store.js";
+import { extractSpawnedRunIds } from "./session-scope.js";
 import type { GetEnvoyOutput, ListEnvoysEntry, SpawnEnvoyOutput, WaitEnvoysOutput } from "./types.js";
 
 /**
@@ -62,17 +63,27 @@ function registerTools(pi: ExtensionAPI): void {
         model: params.model,
         cwd: params.cwd,
       });
+
+      // Record in session history for session-scoped visibility.
+      // Best-effort: spawn succeeded regardless; the run is in the store.
+      let sessionTrackingFailed = false;
+      try {
+        pi.appendEntry("envoy_spawn", { runId: result.runId });
+      } catch {
+        sessionTrackingFailed = true;
+      }
+
+      const lines = [
+        `Envoy spawned: ${result.name} (${result.runId})`,
+        `Status: ${result.status}`,
+        `Run directory: ${result.runDir}`,
+      ];
+      if (sessionTrackingFailed) {
+        lines.push('\u26a0 Failed to record in session history. Use list_envoys scope "all" to find this run.');
+      }
+
       return {
-        content: [
-          {
-            type: "text",
-            text: [
-              `Envoy spawned: ${result.name} (${result.runId})`,
-              `Status: ${result.status}`,
-              `Run directory: ${result.runDir}`,
-            ].join("\n"),
-          },
-        ],
+        content: [{ type: "text", text: lines.join("\n") }],
         details: result,
       };
     },
@@ -83,18 +94,56 @@ function registerTools(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "list_envoys",
     label: "List Envoys",
-    description: "List known envoy runs from the local run store.",
-    promptSnippet: "list_envoys: list known envoy runs and their statuses",
+    description:
+      'List envoy runs. Defaults to runs spawned in the current session history; use scope "all" for the full run store.',
+    promptSnippet: "list_envoys: list envoy runs scoped to this session (or all)",
     promptGuidelines: [
-      "Use list_envoys for an overview of all envoy runs. For waiting on specific runs, prefer wait_envoys.",
+      'list_envoys defaults to scope "session", showing only envoys spawned in this conversation\'s history (including across resume and fork).',
+      'Use scope "all" to see every run in the local store, including runs from other sessions.',
       "To inspect a specific envoy's output, use get_envoy with its runId.",
     ],
-    parameters: Type.Object({}),
-    async execute() {
-      const runs = await runtime.listRuns();
+    parameters: Type.Object({
+      scope: Type.Optional(
+        Type.Union([Type.Literal("session"), Type.Literal("all")], {
+          description: '"session" (default) or "all"',
+        }),
+      ),
+    }),
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const scope = params.scope ?? "session";
+
+      let runs: ListEnvoysEntry[];
+
+      if (scope === "all") {
+        runs = await runtime.listRuns();
+      } else {
+        // Walk session branch to find envoy_spawn entries
+        const branch = ctx.sessionManager.getBranch();
+        const runIds = extractSpawnedRunIds(branch);
+
+        const settled = await Promise.allSettled(
+          runIds.map((id) => runtime.getRun(id)),
+        );
+        runs = [];
+        for (const entry of settled) {
+          if (entry.status !== "fulfilled") continue;
+          const info = entry.value;
+          runs.push({
+            runId: info.runId,
+            name: info.name,
+            status: info.status,
+            startedAt: info.startedAt,
+            lastActivityAt: info.lastActivityAt,
+            runDir: info.runDir,
+            model: info.model,
+          });
+        }
+      }
+
       if (runs.length === 0) {
+        const qualifier = scope === "session" ? " in this session" : "";
         return {
-          content: [{ type: "text", text: "No envoy runs found." }],
+          content: [{ type: "text", text: `No envoy runs found${qualifier}.` }],
           details: [] as ListEnvoysEntry[],
         };
       }

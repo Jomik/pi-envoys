@@ -40,6 +40,7 @@ Behavior:
 3. persist launch inputs
 4. start a new `pi` subprocess for the run
 5. initialize run state as `running`
+6. record the spawned `runId` in the parent session state so later session-scoped listing can discover it across reload, resume, and fork
 
 Output:
 - `runId`
@@ -53,10 +54,16 @@ Postconditions:
 
 ### `list_envoys`
 
-Lists known envoy runs from the local run store.
+Lists known envoy runs.
+
+Input:
+- optional `scope` — `"session"` or `"all"` (default: `"session"`)
+  - `session`: list runs known to the current session history
+  - `all`: list all runs from the local run store
 
 Source of truth:
-- the directory tree under the run store root
+- for `scope: "session"`, the current session history identifies known `runId`s; run state is then read from the local run store
+- for `scope: "all"`, the directory tree under the run store root is the source of truth
 - no separate database is required
 
 Returns per run:
@@ -248,6 +255,16 @@ Runs receive only the explicit launch payload: `prompt`, optional `model`, and o
 State is file-backed so callers can inspect runs without attaching to a live process.
 
 `lastActivityAt` must be updated whenever the runtime observes meaningful run activity, such as subprocess start, stdout or stderr output, stop handling, exit observation, or result persistence.
+
+Parent sessions may also persist spawned `runId`s in session state to support session-scoped visibility. That session state is an index for discovery, not the source of truth for run state.
+
+### Visibility
+
+Session scoping affects visibility only. It does not affect envoy lifetime or imply exclusive ownership.
+
+Ending, reloading, switching, or forking a parent session must not implicitly stop envoys.
+
+Session-scoped visibility is based on session history, not strict current `sessionId`, so resumed or forked conversations can still see envoys spawned earlier in that history.
 
 ### Results
 

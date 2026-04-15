@@ -70,6 +70,11 @@ Why:
 - avoids hidden session-side effects
 - leaves delivery policy to higher-level packages
 
+Note:
+- parent-session integration may still scope envoy *visibility* to the current session history
+- this visibility scoping is not ownership or lifetime coupling
+- envoys remain detached subprocesses whose lifetime is independent from parent session lifecycle
+
 ## Consequences
 
 ### Positive
@@ -79,6 +84,7 @@ Why:
 - file-backed inspectability
 - low conceptual surface area
 - clean composition into higher-level packages
+- session-scoped discovery can reduce unrelated cross-session clutter without changing run lifetime semantics
 
 ### Negative
 
