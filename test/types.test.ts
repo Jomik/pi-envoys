@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   canTransition,
   isTerminal,
-  TERMINAL_STATUSES,
   type RunStatus,
+  TERMINAL_STATUSES,
 } from "../src/types.js";
 
 describe("status model", () => {
-  const ALL_STATUSES: RunStatus[] = ["running", "completed", "failed", "stopped"];
+  const ALL_STATUSES: RunStatus[] = [
+    "running",
+    "completed",
+    "failed",
+    "stopped",
+  ];
   const TERMINAL: RunStatus[] = ["completed", "failed", "stopped"];
 
   describe("isTerminal", () => {

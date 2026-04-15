@@ -12,9 +12,16 @@ export function extractSpawnedRunIds(
 
   for (const entry of entries) {
     if (entry.type !== "custom") continue;
-    if (!("customType" in entry) || entry.customType !== "envoy_spawn") continue;
-    if (!("data" in entry) || entry.data == null || typeof entry.data !== "object") continue;
-    if (!("runId" in entry.data) || typeof entry.data.runId !== "string") continue;
+    if (!("customType" in entry) || entry.customType !== "envoy_spawn")
+      continue;
+    if (
+      !("data" in entry) ||
+      entry.data == null ||
+      typeof entry.data !== "object"
+    )
+      continue;
+    if (!("runId" in entry.data) || typeof entry.data.runId !== "string")
+      continue;
     const { runId } = entry.data;
     if (!seen.has(runId)) {
       seen.add(runId);

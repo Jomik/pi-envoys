@@ -1,8 +1,8 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { RecorderCore, ACTIVITY_THROTTLE_MS } from "../src/recorder-core.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { RecorderCore } from "../src/recorder-core.js";
 import {
   readResult,
   readStatus,
@@ -296,6 +296,8 @@ describe("failure-path finalization", () => {
     recorder.finalizeOnce("failed");
 
     expect(readStatus(runDir)!.status).toBe("failed");
-    expect(readResult(runDir)!.errorMessage).toBe("unhandledRejection: promise failed");
+    expect(readResult(runDir)!.errorMessage).toBe(
+      "unhandledRejection: promise failed",
+    );
   });
 });

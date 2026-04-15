@@ -20,10 +20,7 @@ export function isTerminal(status: RunStatus): boolean {
  *
  * No transition out of a terminal state.
  */
-export function canTransition(
-  from: RunStatus,
-  to: RunStatus,
-): boolean {
+export function canTransition(from: RunStatus, to: RunStatus): boolean {
   if (isTerminal(from)) return false;
   // from === "running"
   return to !== "running";

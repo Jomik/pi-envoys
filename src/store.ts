@@ -1,6 +1,13 @@
-import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { randomBytes } from "node:crypto";
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { join } from "node:path";
 import { getAgentDir } from "@mariozechner/pi-coding-agent";
 import type { RequestFile, ResultFile, StatusFile } from "./types.js";
 
@@ -38,7 +45,7 @@ export function createRunDir(storeRoot: string, runId: string): string {
  */
 export function writeJsonAtomic(filePath: string, data: unknown): void {
   const tmp = `${filePath}.${randomBytes(4).toString("hex")}.tmp`;
-  writeFileSync(tmp, JSON.stringify(data, null, 2) + "\n", "utf-8");
+  writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
   renameSync(tmp, filePath);
 }
 
