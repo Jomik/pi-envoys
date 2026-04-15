@@ -5,7 +5,7 @@
 
 ## Context
 
-`@jomik/pi-envoys` is intended to be a small, composable primitive for launching and managing isolated agent runs in pi.
+`pi-envoys` is intended to be a small, composable primitive for launching and managing isolated agent runs in pi.
 
 The main design questions were:
 - should runs execute in-process via an SDK or as separate subprocesses?

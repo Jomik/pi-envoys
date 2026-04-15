@@ -1,5 +1,5 @@
 {
-  "name": "@jomik/pi-envoys",
+  "name": "pi-envoys",
   "version": "0.1.0",
   "description": "Fresh isolated agent runs for pi",
   "type": "module",

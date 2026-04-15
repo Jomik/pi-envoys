@@ -8,7 +8,7 @@ import { extractSpawnedRunIds } from "./session-scope.js";
 import type { GetEnvoyOutput, ListEnvoysEntry, SpawnEnvoyOutput, WaitEnvoysOutput } from "./types.js";
 
 /**
- * @jomik/pi-envoys
+ * pi-envoys
  *
  * Extension entry point. Bifurcates on `--envoy` flag:
  * - Parent mode (no --envoy): registers tools in session_start

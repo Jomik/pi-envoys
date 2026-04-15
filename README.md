@@ -1,4 +1,4 @@
-# @jomik/pi-envoys
+# pi-envoys
 
 Small primitive for launching and managing isolated envoy runs in pi.
 
