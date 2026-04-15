@@ -20,7 +20,7 @@ Scaffold only. No implementation yet.
 ## API surface
 
 - `spawn_envoy` — start one fresh isolated envoy run
-- `list_envoys` — list known runs from the local run store
+- `list_envoys` — list runs (session-scoped by default, or all from the run store)
 - `stop_envoy` — stop a running envoy
 - `remove_envoy` — remove a terminal envoy from the local run store
 
