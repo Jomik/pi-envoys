@@ -5,11 +5,11 @@
  * using a real SessionManager.inMemory() and EnvoyRuntime with FakeLauncher.
  */
 
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SessionManager } from "@mariozechner/pi-coding-agent";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FakeLauncher } from "../src/process.js";
 import { EnvoyRuntime } from "../src/runtime.js";
 import { extractSpawnedRunIds } from "../src/session-scope.js";

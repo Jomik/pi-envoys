@@ -1,14 +1,14 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { RecorderCore } from "./recorder-core.js";
 import { PiLauncher } from "./process.js";
+import { RecorderCore } from "./recorder-core.js";
 import { EnvoyRuntime } from "./runtime.js";
-import { resolveRunStoreRoot } from "./store.js";
 import { extractSpawnedRunIds } from "./session-scope.js";
-import type { GetEnvoyOutput, ListEnvoysEntry, SpawnEnvoyOutput, WaitEnvoysOutput } from "./types.js";
+import { resolveRunStoreRoot } from "./store.js";
+import type { ListEnvoysEntry, WaitEnvoysOutput } from "./types.js";
 
 /**
- * @jomik/pi-envoys
+ * pi-envoys
  *
  * Extension entry point. Bifurcates on `--envoy` flag:
  * - Parent mode (no --envoy): registers tools in session_start
@@ -44,7 +44,8 @@ function registerTools(pi: ExtensionAPI): void {
     label: "Spawn Envoy",
     description:
       "Start a fresh isolated envoy run. The envoy executes the given prompt in a separate pi subprocess with its own context.",
-    promptSnippet: "spawn_envoy: start an isolated agent run with an explicit prompt",
+    promptSnippet:
+      "spawn_envoy: start an isolated agent run with an explicit prompt",
     promptGuidelines: [
       "Envoys run in isolated subprocesses with no access to this conversation's context.",
       "Envoy prompts must be fully self-contained: include all file paths, requirements, and relevant context.",
@@ -53,9 +54,15 @@ function registerTools(pi: ExtensionAPI): void {
       "Do not spawn an envoy for work that depends on another envoy's output. Wait for the first to complete, inspect its result, then proceed.",
     ],
     parameters: Type.Object({
-      prompt: Type.String({ description: "Exact task payload for the envoy run" }),
-      model: Type.Optional(Type.String({ description: "Model selector for the subprocess" })),
-      cwd: Type.Optional(Type.String({ description: "Working directory for the subprocess" })),
+      prompt: Type.String({
+        description: "Exact task payload for the envoy run",
+      }),
+      model: Type.Optional(
+        Type.String({ description: "Model selector for the subprocess" }),
+      ),
+      cwd: Type.Optional(
+        Type.String({ description: "Working directory for the subprocess" }),
+      ),
     }),
     async execute(_toolCallId, params) {
       const result = await runtime.spawnRun({
@@ -79,7 +86,9 @@ function registerTools(pi: ExtensionAPI): void {
         `Run directory: ${result.runDir}`,
       ];
       if (sessionTrackingFailed) {
-        lines.push('\u26a0 Failed to record in session history. Use list_envoys scope "all" to find this run.');
+        lines.push(
+          '\u26a0 Failed to record in session history. Use list_envoys scope "all" to find this run.',
+        );
       }
 
       return {
@@ -96,7 +105,8 @@ function registerTools(pi: ExtensionAPI): void {
     label: "List Envoys",
     description:
       'List envoy runs. Defaults to runs spawned in the current session history; use scope "all" for the full run store.',
-    promptSnippet: "list_envoys: list envoy runs scoped to this session (or all)",
+    promptSnippet:
+      "list_envoys: list envoy runs scoped to this session (or all)",
     promptGuidelines: [
       'list_envoys defaults to scope "session", showing only envoys spawned in this conversation\'s history (including across resume and fork).',
       'Use scope "all" to see every run in the local store, including runs from other sessions.',
@@ -192,15 +202,19 @@ function registerTools(pi: ExtensionAPI): void {
       ];
       if (info.model) lines.push(`Model: ${info.model}`);
       if (info.prompt) {
-        const preview = info.prompt.length > 200
-          ? info.prompt.slice(0, 200) + "..."
-          : info.prompt;
+        const preview =
+          info.prompt.length > 200
+            ? `${info.prompt.slice(0, 200)}...`
+            : info.prompt;
         lines.push(`Prompt: ${preview}`);
       }
       if (info.result) {
-        if (info.result.finalText) lines.push(`\nResult:\n${info.result.finalText}`);
-        if (info.result.errorMessage) lines.push(`Error: ${info.result.errorMessage}`);
-        if (info.result.exitCode != null) lines.push(`Exit code: ${info.result.exitCode}`);
+        if (info.result.finalText)
+          lines.push(`\nResult:\n${info.result.finalText}`);
+        if (info.result.errorMessage)
+          lines.push(`Error: ${info.result.errorMessage}`);
+        if (info.result.exitCode != null)
+          lines.push(`Exit code: ${info.result.exitCode}`);
       }
 
       return {
@@ -229,7 +243,10 @@ function registerTools(pi: ExtensionAPI): void {
         description: '"all" waits for every run; "any" waits for the first',
       }),
       timeout: Type.Optional(
-        Type.Number({ description: "Max seconds to wait (default: 600)", default: 600 }),
+        Type.Number({
+          description: "Max seconds to wait (default: 600)",
+          default: 600,
+        }),
       ),
     }),
     async execute(_toolCallId, params, signal, onUpdate) {
@@ -243,18 +260,23 @@ function registerTools(pi: ExtensionAPI): void {
         (current) => {
           // Stream progress to UI without entering LLM context
           const summary = current.map(
-            (r) => `${r.name} (${r.runId}): ${r.status}  activity: ${r.lastActivityAt}`,
+            (r) =>
+              `${r.name} (${r.runId}): ${r.status}  activity: ${r.lastActivityAt}`,
           );
           onUpdate?.({
             content: [{ type: "text", text: summary.join("\n") }],
-            details: { timedOut: false, results: current } satisfies WaitEnvoysOutput,
+            details: {
+              timedOut: false,
+              results: current,
+            } satisfies WaitEnvoysOutput,
           });
         },
       );
 
       // Format final output
       const lines: string[] = [];
-      if (result.timedOut) lines.push("\u26a0 Wait timed out. Returning current state.\n");
+      if (result.timedOut)
+        lines.push("\u26a0 Wait timed out. Returning current state.\n");
 
       for (const r of result.results) {
         lines.push(`${r.name} (${r.runId}): ${r.status}`);

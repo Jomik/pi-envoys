@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import { existsSync, openSync } from "node:fs";
 import { join } from "node:path";
-import type { RequestFile } from "./types.js";
 import { stderrLogPath } from "./store.js";
+import type { RequestFile } from "./types.js";
 
 // ── Launcher interface ──
 
@@ -105,8 +105,10 @@ export class PiLauncher implements EnvoyLauncher {
       "--no-skills",
       "--no-prompt-templates",
       "--no-themes",
-      "-e", join(this.extensionDir, "index.ts"),
-      "--envoy", runDir,
+      "-e",
+      join(this.extensionDir, "index.ts"),
+      "--envoy",
+      runDir,
     ];
 
     if (request.model) {
@@ -117,7 +119,10 @@ export class PiLauncher implements EnvoyLauncher {
     piArgs.push(".");
 
     const invocation = this.piCommand
-      ? { command: this.piCommand.command, args: [...this.piCommand.args, ...piArgs] }
+      ? {
+          command: this.piCommand.command,
+          args: [...this.piCommand.args, ...piArgs],
+        }
       : getPiInvocation(piArgs);
 
     const stderrFd = openSync(stderrLogPath(runDir), "w");

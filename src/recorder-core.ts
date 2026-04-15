@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ResultFile, StatusFile } from "./types.js";
 import { readStatus, writeResult, writeStatus } from "./store.js";
+import type { ResultFile, StatusFile } from "./types.js";
 
 // ── Constants ──
 
@@ -177,7 +177,8 @@ export class RecorderCore {
 
   private readStatusOrThrow(): StatusFile {
     const status = readStatus(this.runDir);
-    if (!status) throw new Error(`RecorderCore: status.json not found in ${this.runDir}`);
+    if (!status)
+      throw new Error(`RecorderCore: status.json not found in ${this.runDir}`);
     return status;
   }
 }

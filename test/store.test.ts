@@ -1,8 +1,14 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
-import { mkdtempSync, existsSync, readFileSync, readdirSync, mkdirSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { rmSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@mariozechner/pi-coding-agent", () => ({
   getAgentDir: () => mockAgentDir,
@@ -11,21 +17,21 @@ vi.mock("@mariozechner/pi-coding-agent", () => ({
 let mockAgentDir: string;
 
 import {
-  resolveRunStoreRoot,
   createRunDir,
-  writeJsonAtomic,
-  readJsonOrUndefined,
-  writeRequest,
-  readRequest,
-  writeStatus,
-  readStatus,
-  writeResult,
-  readResult,
   listRunIds,
+  readJsonOrUndefined,
+  readRequest,
+  readResult,
+  readStatus,
   removeRunDir,
   requestPath,
-  statusPath,
+  resolveRunStoreRoot,
   resultPath,
+  statusPath,
+  writeJsonAtomic,
+  writeRequest,
+  writeResult,
+  writeStatus,
 } from "../src/store.js";
 import type { RequestFile, ResultFile, StatusFile } from "../src/types.js";
 

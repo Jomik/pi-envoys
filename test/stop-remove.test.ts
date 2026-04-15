@@ -1,10 +1,15 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FakeLauncher } from "../src/process.js";
 import { EnvoyRuntime } from "../src/runtime.js";
-import { readResult, readStatus, writeResult, writeStatus } from "../src/store.js";
+import {
+  readResult,
+  readStatus,
+  writeResult,
+  writeStatus,
+} from "../src/store.js";
 
 const FAST_TIMINGS = {
   stopGraceMs: 100,
@@ -105,7 +110,7 @@ describe("stopRun", () => {
   it("respects child-written terminal state after stop", async () => {
     const out = await runtime.spawnRun({ prompt: "fast exit" });
     const status = readStatus(out.runDir)!;
-    const pid = status.pid!;
+    const _pid = status.pid!;
 
     // Simulate: child writes terminal 'failed' and dies on SIGTERM
     const origSendSignal = launcher.sendSignal.bind(launcher);

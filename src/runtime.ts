@@ -14,11 +14,9 @@ import {
 } from "./store.js";
 import type {
   GetEnvoyOutput,
-  GetEnvoyResult,
   ListEnvoysEntry,
   RequestFile,
   ResultFile,
-  RunStatus,
   SpawnEnvoyInput,
   SpawnEnvoyOutput,
   StatusFile,
@@ -213,9 +211,13 @@ export class EnvoyRuntime {
 
     // Rule 4: finalizingAt is recent → bounded wait
     if (status.finalizingAt) {
-      const finalizingAge = Date.now() - new Date(status.finalizingAt).getTime();
+      const finalizingAge =
+        Date.now() - new Date(status.finalizingAt).getTime();
       if (finalizingAge < this.timings.finalizeWaitMs) {
-        const waited = await this.waitForResult(runDir, this.timings.finalizeWaitMs - finalizingAge);
+        const waited = await this.waitForResult(
+          runDir,
+          this.timings.finalizeWaitMs - finalizingAge,
+        );
         if (waited) {
           status = readStatus(runDir)!;
           if (isTerminal(status.status)) return status;
@@ -290,7 +292,9 @@ export class EnvoyRuntime {
     // Reconcile before checking precondition — on-disk status may be stale
     const reconciled = await this.reconcileRun(runId);
     if (!isTerminal(reconciled.status)) {
-      throw new Error(`Run ${runId}: cannot remove non-terminal run (status: ${reconciled.status})`);
+      throw new Error(
+        `Run ${runId}: cannot remove non-terminal run (status: ${reconciled.status})`,
+      );
     }
     removeRunDir(this.storeRoot, runId);
   }
@@ -322,9 +326,7 @@ export class EnvoyRuntime {
 
       const terminalCount = current.filter((r) => isTerminal(r.status)).length;
       const done =
-        mode === "all"
-          ? terminalCount === runIds.length
-          : terminalCount > 0;
+        mode === "all" ? terminalCount === runIds.length : terminalCount > 0;
 
       onProgress?.(current);
 
@@ -427,5 +429,3 @@ export class EnvoyRuntime {
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
 }
-
-

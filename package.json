@@ -1,12 +1,17 @@
 {
-  "name": "@jomik/pi-envoys",
+  "name": "pi-envoys",
   "version": "0.1.0",
   "description": "Fresh isolated agent runs for pi",
   "type": "module",
   "private": true,
   "scripts": {
+    "check": "biome check",
+    "format": "biome check --write",
+    "lint": "biome lint",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "ci": "npm run check && npm run typecheck && npm run test"
   },
   "license": "MIT",
   "keywords": [
@@ -30,6 +35,7 @@
     "@sinclair/typebox": "*"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.12",
     "typescript": "^5.9.3",
     "vitest": "^4.1.4"
   }

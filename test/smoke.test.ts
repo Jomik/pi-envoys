@@ -18,10 +18,10 @@
  * - remove cleans up
  */
 
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PiLauncher } from "../src/process.js";
 import { EnvoyRuntime } from "../src/runtime.js";
 import { readResult, readStatus } from "../src/store.js";
@@ -48,70 +48,77 @@ describe.skipIf(!SMOKE_ENABLED)("smoke: real PiLauncher", () => {
     }
   });
 
-  it("spawns, completes, and removes a trivial envoy", async () => {
-    // Spawn
-    const out = await runtime.spawnRun({
-      prompt: 'Respond with exactly: "hello from envoy"',
-    });
+  it(
+    "spawns, completes, and removes a trivial envoy",
+    async () => {
+      // Spawn
+      const out = await runtime.spawnRun({
+        prompt: 'Respond with exactly: "hello from envoy"',
+      });
 
-    expect(out.status).toBe("running");
-    expect(out.runId).toBeDefined();
-    expect(out.runDir).toBeDefined();
-    expect(existsSync(out.runDir)).toBe(true);
+      expect(out.status).toBe("running");
+      expect(out.runId).toBeDefined();
+      expect(out.runDir).toBeDefined();
+      expect(existsSync(out.runDir)).toBe(true);
 
-    console.log(`Spawned envoy: ${out.name} (${out.runId})`);
-    console.log(`Run directory: ${out.runDir}`);
+      console.log(`Spawned envoy: ${out.name} (${out.runId})`);
+      console.log(`Run directory: ${out.runDir}`);
 
-    // Poll until terminal
-    const deadline = Date.now() + TIMEOUT_MS;
-    let status = readStatus(out.runDir);
+      // Poll until terminal
+      const deadline = Date.now() + TIMEOUT_MS;
+      let status = readStatus(out.runDir);
 
-    while (Date.now() < deadline) {
-      status = readStatus(out.runDir);
-      if (status && ["completed", "failed", "stopped"].includes(status.status)) {
-        break;
+      while (Date.now() < deadline) {
+        status = readStatus(out.runDir);
+        if (
+          status &&
+          ["completed", "failed", "stopped"].includes(status.status)
+        ) {
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 1_000));
       }
-      await new Promise((r) => setTimeout(r, 1_000));
-    }
 
-    console.log(`Final status: ${status?.status}`);
+      console.log(`Final status: ${status?.status}`);
 
-    // Verify terminal state
-    expect(status).toBeDefined();
-    expect(["completed", "failed", "stopped"]).toContain(status!.status);
+      // Verify terminal state
+      expect(status).toBeDefined();
+      expect(["completed", "failed", "stopped"]).toContain(status!.status);
 
-    // Verify recorderStartedAt was written (proves recorder loaded)
-    expect(status!.recorderStartedAt).toBeDefined();
-    console.log(`Recorder started at: ${status!.recorderStartedAt}`);
+      // Verify recorderStartedAt was written (proves recorder loaded)
+      expect(status!.recorderStartedAt).toBeDefined();
+      console.log(`Recorder started at: ${status!.recorderStartedAt}`);
 
-    // Verify result.json
-    const result = readResult(out.runDir);
-    expect(result).toBeDefined();
-    expect(result!.runId).toBe(out.runId);
-    expect(result!.finishedAt).toBeDefined();
-    console.log(`Result status: ${result!.status}`);
-    if (result!.finalText) {
-      console.log(`Final text: ${result!.finalText.slice(0, 200)}`);
-    }
-    if (result!.errorMessage) {
-      console.log(`Error: ${result!.errorMessage}`);
-    }
+      // Verify result.json
+      const result = readResult(out.runDir);
+      expect(result).toBeDefined();
+      expect(result!.runId).toBe(out.runId);
+      expect(result!.finishedAt).toBeDefined();
+      console.log(`Result status: ${result!.status}`);
+      if (result!.finalText) {
+        console.log(`Final text: ${result!.finalText.slice(0, 200)}`);
+      }
+      if (result!.errorMessage) {
+        console.log(`Error: ${result!.errorMessage}`);
+      }
 
-    // Verify stderr.log exists (even if empty)
-    const stderrPath = join(out.runDir, "stderr.log");
-    expect(existsSync(stderrPath)).toBe(true);
-    const stderr = readFileSync(stderrPath, "utf-8");
-    if (stderr.trim()) {
-      console.log(`stderr.log:\n${stderr.slice(0, 500)}`);
-    }
+      // Verify stderr.log exists (even if empty)
+      const stderrPath = join(out.runDir, "stderr.log");
+      expect(existsSync(stderrPath)).toBe(true);
+      const stderr = readFileSync(stderrPath, "utf-8");
+      if (stderr.trim()) {
+        console.log(`stderr.log:\n${stderr.slice(0, 500)}`);
+      }
 
-    // Verify status.json finalization ordering
-    expect(status!.finalizingAt).toBeDefined();
-    expect(status!.terminalAt).toBeDefined();
+      // Verify status.json finalization ordering
+      expect(status!.finalizingAt).toBeDefined();
+      expect(status!.terminalAt).toBeDefined();
 
-    // Remove
-    await runtime.removeRun(out.runId);
-    expect(existsSync(out.runDir)).toBe(false);
-    console.log("Removed successfully.");
-  }, TIMEOUT_MS + 10_000);
+      // Remove
+      await runtime.removeRun(out.runId);
+      expect(existsSync(out.runDir)).toBe(false);
+      console.log("Removed successfully.");
+    },
+    TIMEOUT_MS + 10_000,
+  );
 });

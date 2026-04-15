@@ -1,7 +1,7 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FakeLauncher } from "../src/process.js";
 import { EnvoyRuntime } from "../src/runtime.js";
 import {
@@ -46,7 +46,10 @@ describe("spawnRun", () => {
   });
 
   it("persists request.json with prompt", async () => {
-    const out = await runtime.spawnRun({ prompt: "hello world", model: "gpt-5" });
+    const out = await runtime.spawnRun({
+      prompt: "hello world",
+      model: "gpt-5",
+    });
     const req = readRequest(out.runDir);
     expect(req).toBeDefined();
     expect(req!.prompt).toBe("hello world");
@@ -268,7 +271,9 @@ describe("reconcileRun", () => {
   });
 
   it("throws for nonexistent runId", async () => {
-    await expect(runtime.reconcileRun("nonexistent")).rejects.toThrow(/not found/);
+    await expect(runtime.reconcileRun("nonexistent")).rejects.toThrow(
+      /not found/,
+    );
   });
 
   it("waits for result when finalizingAt is recent", async () => {
@@ -322,9 +327,7 @@ describe("waitRuns", () => {
     launcher.kill(pidA);
     launcher.kill(pidB);
 
-    const result = await runtime.waitRuns(
-      [a.runId, b.runId], "all", 5_000,
-    );
+    const result = await runtime.waitRuns([a.runId, b.runId], "all", 5_000);
 
     expect(result.timedOut).toBe(false);
     expect(result.results).toHaveLength(2);
@@ -339,9 +342,7 @@ describe("waitRuns", () => {
     // Kill only the first
     launcher.kill(pidA);
 
-    const result = await runtime.waitRuns(
-      [a.runId, b.runId], "any", 5_000,
-    );
+    const result = await runtime.waitRuns([a.runId, b.runId], "any", 5_000);
 
     expect(result.timedOut).toBe(false);
     expect(result.results).toHaveLength(2);
@@ -381,7 +382,10 @@ describe("waitRuns", () => {
     setTimeout(() => controller.abort(), 100);
 
     const result = await runtime.waitRuns(
-      [a.runId], "all", 10_000, controller.signal,
+      [a.runId],
+      "all",
+      10_000,
+      controller.signal,
     );
 
     // Should not be timedOut — was aborted
@@ -396,9 +400,8 @@ describe("waitRuns", () => {
     // Kill after 150ms
     setTimeout(() => launcher.kill(readStatus(a.runDir)!.pid!), 150);
 
-    await runtime.waitRuns(
-      [a.runId], "all", 5_000, undefined,
-      (current) => progressCalls.push(current.length),
+    await runtime.waitRuns([a.runId], "all", 5_000, undefined, (current) =>
+      progressCalls.push(current.length),
     );
 
     expect(progressCalls.length).toBeGreaterThan(0);
@@ -414,9 +417,7 @@ describe("waitRuns", () => {
     launcher.kill(pidA);
     setTimeout(() => launcher.kill(pidB), 200);
 
-    const result = await runtime.waitRuns(
-      [a.runId, b.runId], "all", 5_000,
-    );
+    const result = await runtime.waitRuns([a.runId, b.runId], "all", 5_000);
 
     expect(result.timedOut).toBe(false);
     expect(result.results).toHaveLength(2);
