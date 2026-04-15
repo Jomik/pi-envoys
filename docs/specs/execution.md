@@ -72,6 +72,34 @@ Returns per run:
 
 Ordering is implementation-defined.
 
+### `get_envoy`
+
+Returns the full state of a single envoy identified by `runId`.
+
+Input:
+- `runId`
+
+Behavior:
+- reconcile the run's on-disk state with process liveness
+- read and return the run's current state
+
+Returns:
+- `runId`
+- `name`
+- `status`
+- `startedAt`
+- `lastActivityAt`
+- `runDir`
+- optional `model`
+- optional `prompt` — the original launch prompt
+- optional `result` — present for terminal runs, containing:
+  - `finalText` — the envoy's final response
+  - `errorMessage` — present when the run failed
+  - `exitCode`
+  - `usage`
+
+`get_envoy` must reconcile the run before returning.
+
 ### `stop_envoy`
 
 Stops a running envoy identified by `runId`.

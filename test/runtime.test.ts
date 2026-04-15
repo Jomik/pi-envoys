@@ -111,6 +111,70 @@ describe("listRuns", () => {
   });
 });
 
+// ── getRun ──
+
+describe("getRun", () => {
+  it("returns full state for a running envoy", async () => {
+    const out = await runtime.spawnRun({ prompt: "hello world", model: "m1" });
+    const info = await runtime.getRun(out.runId);
+
+    expect(info.runId).toBe(out.runId);
+    expect(info.name).toBe(out.name);
+    expect(info.status).toBe("running");
+    expect(info.model).toBe("m1");
+    expect(info.prompt).toBe("hello world");
+    expect(info.result).toBeUndefined();
+  });
+
+  it("includes result for completed envoy", async () => {
+    const out = await runtime.spawnRun({ prompt: "do stuff" });
+    const status = readStatus(out.runDir)!;
+
+    writeResult(out.runDir, {
+      runId: out.runId,
+      name: out.name,
+      status: "completed",
+      finishedAt: new Date().toISOString(),
+      exitCode: 0,
+      finalText: "Done.",
+      usage: { input: 10, output: 5 },
+    });
+    launcher.kill(status.pid!);
+
+    const info = await runtime.getRun(out.runId);
+    expect(info.status).toBe("completed");
+    expect(info.result).toBeDefined();
+    expect(info.result!.finalText).toBe("Done.");
+    expect(info.result!.exitCode).toBe(0);
+    expect(info.result!.usage).toEqual({ input: 10, output: 5 });
+  });
+
+  it("includes errorMessage for failed envoy", async () => {
+    const out = await runtime.spawnRun({ prompt: "will fail" });
+    const status = readStatus(out.runDir)!;
+    launcher.kill(status.pid!);
+
+    const info = await runtime.getRun(out.runId);
+    expect(info.status).toBe("failed");
+    expect(info.result).toBeDefined();
+    expect(info.result!.errorMessage).toBeDefined();
+  });
+
+  it("reconciles stale status", async () => {
+    const out = await runtime.spawnRun({ prompt: "stale" });
+    const status = readStatus(out.runDir)!;
+    launcher.kill(status.pid!);
+
+    // status.json still says running, getRun should reconcile
+    const info = await runtime.getRun(out.runId);
+    expect(info.status).toBe("failed");
+  });
+
+  it("throws for nonexistent runId", async () => {
+    await expect(runtime.getRun("nonexistent")).rejects.toThrow(/not found/);
+  });
+});
+
 // ── reconcileRun ──
 
 describe("reconcileRun", () => {

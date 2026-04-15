@@ -107,6 +107,25 @@ export interface ListEnvoysEntry {
   model?: string;
 }
 
+export interface GetEnvoyResult {
+  finalText?: string;
+  errorMessage?: string;
+  exitCode?: number;
+  usage?: Record<string, unknown>;
+}
+
+export interface GetEnvoyOutput {
+  runId: string;
+  name: string;
+  status: RunStatus;
+  startedAt: string;
+  lastActivityAt: string;
+  runDir: string;
+  model?: string;
+  prompt?: string;
+  result?: GetEnvoyResult;
+}
+
 export interface StopEnvoyInput {
   runId: string;
 }

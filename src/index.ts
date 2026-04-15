@@ -49,6 +49,7 @@ function registerTools(pi: ExtensionAPI): void {
       "Envoys run in isolated subprocesses with no access to this conversation's context.",
       "Envoy prompts must be fully self-contained: include all file paths, requirements, and relevant context.",
       "Use envoys for independent, parallelizable work. Spawn multiple envoys for tasks that don't depend on each other.",
+      "After spawning, poll with list_envoys until status is terminal, then use get_envoy to read the result.",
       "Do not spawn an envoy for work that depends on another envoy's output. Wait for the first to complete, inspect its result, then proceed.",
     ],
     parameters: Type.Object({
@@ -87,7 +88,7 @@ function registerTools(pi: ExtensionAPI): void {
     promptSnippet: "list_envoys: list known envoy runs and their statuses",
     promptGuidelines: [
       "Use list_envoys to poll envoy progress after spawning. A run is done when its status is completed, failed, or stopped.",
-      "To inspect a completed envoy's output, read its result.json: `read <runDir>/result.json`. The finalText field contains the envoy's response.",
+      "To inspect an envoy's output, use get_envoy with its runId.",
     ],
     parameters: Type.Object({}),
     async execute() {
@@ -114,6 +115,49 @@ function registerTools(pi: ExtensionAPI): void {
       return {
         content: [{ type: "text", text: lines.join("\n") }],
         details: runs,
+      };
+    },
+  });
+
+  // ── get_envoy ──
+
+  pi.registerTool({
+    name: "get_envoy",
+    label: "Get Envoy",
+    description:
+      "Return the full state of a single envoy identified by runId, including its result when terminal.",
+    promptSnippet: "get_envoy: inspect an envoy's status, prompt, and result",
+    promptGuidelines: [
+      "Use get_envoy to inspect an envoy's result after it reaches a terminal state. The result includes finalText (the envoy's response), errorMessage, exitCode, and usage.",
+    ],
+    parameters: Type.Object({
+      runId: Type.String({ description: "Run ID of the envoy to inspect" }),
+    }),
+    async execute(_toolCallId, params) {
+      const info = await runtime.getRun(params.runId);
+
+      const lines = [
+        `${info.name} (${info.runId})`,
+        `Status: ${info.status}`,
+        `Started: ${info.startedAt}`,
+        `Activity: ${info.lastActivityAt}`,
+      ];
+      if (info.model) lines.push(`Model: ${info.model}`);
+      if (info.prompt) {
+        const preview = info.prompt.length > 200
+          ? info.prompt.slice(0, 200) + "..."
+          : info.prompt;
+        lines.push(`Prompt: ${preview}`);
+      }
+      if (info.result) {
+        if (info.result.finalText) lines.push(`\nResult:\n${info.result.finalText}`);
+        if (info.result.errorMessage) lines.push(`Error: ${info.result.errorMessage}`);
+        if (info.result.exitCode != null) lines.push(`Exit code: ${info.result.exitCode}`);
+      }
+
+      return {
+        content: [{ type: "text", text: lines.join("\n") }],
+        details: info,
       };
     },
   });

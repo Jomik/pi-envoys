@@ -13,6 +13,8 @@ import {
   writeStatus,
 } from "./store.js";
 import type {
+  GetEnvoyOutput,
+  GetEnvoyResult,
   ListEnvoysEntry,
   RequestFile,
   ResultFile,
@@ -126,6 +128,39 @@ export class EnvoyRuntime {
     }
 
     return entries;
+  }
+
+  // ── get ──
+
+  async getRun(runId: string): Promise<GetEnvoyOutput> {
+    const runDir = join(this.storeRoot, runId);
+    const status = await this.reconcileRun(runId);
+    const request = readRequest(runDir);
+
+    const output: GetEnvoyOutput = {
+      runId: status.runId,
+      name: status.name,
+      status: status.status,
+      startedAt: status.startedAt,
+      lastActivityAt: status.lastActivityAt,
+      runDir,
+      model: status.model,
+      prompt: request?.prompt,
+    };
+
+    if (isTerminal(status.status)) {
+      const result = readResult(runDir);
+      if (result) {
+        output.result = {
+          finalText: result.finalText,
+          errorMessage: result.errorMessage,
+          exitCode: result.exitCode,
+          usage: result.usage,
+        };
+      }
+    }
+
+    return output;
   }
 
   // ── reconcile ──
