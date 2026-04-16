@@ -199,7 +199,6 @@ export class EnvoyRuntime {
     if (this.launcher.isAlive(pid)) return status;
 
     // Pid is dead from here on
-    status.processExitObservedAt ??= new Date().toISOString();
     status.lastActivityAt = new Date().toISOString();
     writeStatus(runDir, status);
 
@@ -248,7 +247,6 @@ export class EnvoyRuntime {
     const pid = status.pid!;
 
     // Mark stop requested
-    status.stopRequestedAt = new Date().toISOString();
     status.lastActivityAt = new Date().toISOString();
     writeStatus(runDir, status);
 
@@ -377,7 +375,6 @@ export class EnvoyRuntime {
 
     // Write terminal status.json
     status.status = terminalStatus;
-    status.terminalAt = now;
     status.lastActivityAt = now;
     writeStatus(runDir, status);
 
@@ -392,7 +389,6 @@ export class EnvoyRuntime {
     if (!canTransition(status.status, result.status)) return status;
 
     status.status = result.status;
-    status.terminalAt = result.finishedAt;
     status.lastActivityAt = new Date().toISOString();
     writeStatus(runDir, status);
 

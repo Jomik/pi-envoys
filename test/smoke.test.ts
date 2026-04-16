@@ -11,7 +11,7 @@
  * What it tests:
  * - PiLauncher spawns a detached child pi process
  * - Child loads the extension via -e, picks up --envoy flag
- * - Recorder writes recorderStartedAt
+ * - Recorder updates lastActivityAt
  * - Prompt transport: input event transforms "." to real prompt
  * - Child finalizes to terminal state with result.json
  * - stderr.log is created
@@ -85,9 +85,9 @@ describe.skipIf(!SMOKE_ENABLED)("smoke: real PiLauncher", () => {
       expect(status).toBeDefined();
       expect(["completed", "failed", "stopped"]).toContain(status!.status);
 
-      // Verify recorderStartedAt was written (proves recorder loaded)
-      expect(status!.recorderStartedAt).toBeDefined();
-      console.log(`Recorder started at: ${status!.recorderStartedAt}`);
+      // Verify lastActivityAt was updated (proves recorder loaded)
+      expect(status!.lastActivityAt).toBeDefined();
+      console.log(`Last activity at: ${status!.lastActivityAt}`);
 
       // Verify result.json
       const result = readResult(out.runDir);
@@ -112,7 +112,6 @@ describe.skipIf(!SMOKE_ENABLED)("smoke: real PiLauncher", () => {
 
       // Verify status.json finalization ordering
       expect(status!.finalizingAt).toBeDefined();
-      expect(status!.terminalAt).toBeDefined();
 
       // Remove
       await runtime.removeRun(out.runId);

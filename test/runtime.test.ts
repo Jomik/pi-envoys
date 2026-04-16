@@ -187,7 +187,6 @@ describe("reconcileRun", () => {
     // Manually mark as completed
     const status = readStatus(out.runDir)!;
     status.status = "completed";
-    status.terminalAt = new Date().toISOString();
     writeStatus(out.runDir, status);
 
     const reconciled = await runtime.reconcileRun(out.runId);
@@ -245,13 +244,11 @@ describe("reconcileRun", () => {
     expect(reconciled.status).toBe("stopped");
   });
 
-  it("stopRequestedAt alone does not imply stopped", async () => {
+  it("no signal evidence means failed, not stopped", async () => {
     const out = await runtime.spawnRun({ prompt: "ambiguous" });
     const status = readStatus(out.runDir)!;
 
-    // Only stopRequestedAt — no signal evidence
-    status.stopRequestedAt = new Date().toISOString();
-    writeStatus(out.runDir, status);
+    // No signal evidence — process just died
     launcher.kill(status.pid!);
 
     const reconciled = await runtime.reconcileRun(out.runId);
