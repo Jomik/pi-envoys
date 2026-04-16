@@ -18,3 +18,7 @@ This makes launches easier to reason about, reduces context leakage and bias, an
 - Callers must provide all necessary context in the prompt
 - No risk of accidental context bleeding between sessions
 - Higher-level packages can layer context-forwarding on top if needed
+
+## Clarification (ADR-0007)
+
+Named agent definitions (e.g., `agent="researcher"`) are explicit input — the caller deliberately selects a named launch configuration. This does not weaken the original guarantee. Parent conversation state and session history still never implicitly flow into the child.
