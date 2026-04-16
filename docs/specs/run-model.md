@@ -19,7 +19,7 @@ One envoy run maps to one `pi` subprocess. Each run executes in its own subproce
 
 ### Context
 
-Runs receive only the explicit launch payload: `prompt`, optional `model`, and optional `cwd`. Hidden parent session state is not inherited.
+Runs receive only the explicit launch payload: `prompt`. Hidden parent session state is not inherited.
 
 ### Persistence
 

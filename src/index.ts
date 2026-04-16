@@ -57,18 +57,10 @@ function registerTools(pi: ExtensionAPI): void {
       prompt: Type.String({
         description: "Exact task payload for the envoy run",
       }),
-      model: Type.Optional(
-        Type.String({ description: "Model selector for the subprocess" }),
-      ),
-      cwd: Type.Optional(
-        Type.String({ description: "Working directory for the subprocess" }),
-      ),
     }),
     async execute(_toolCallId, params) {
       const result = await runtime.spawnRun({
         prompt: params.prompt,
-        model: params.model,
-        cwd: params.cwd,
       });
 
       // Record in session history for session-scoped visibility.
@@ -145,7 +137,6 @@ function registerTools(pi: ExtensionAPI): void {
             startedAt: info.startedAt,
             lastActivityAt: info.lastActivityAt,
             runDir: info.runDir,
-            model: info.model,
           });
         }
       }
@@ -165,7 +156,6 @@ function registerTools(pi: ExtensionAPI): void {
           `started: ${r.startedAt}`,
           `activity: ${r.lastActivityAt}`,
         ];
-        if (r.model) parts.push(`model: ${r.model}`);
         parts.push(`dir: ${r.runDir}`);
         return parts.join("  |  ");
       });
@@ -200,7 +190,6 @@ function registerTools(pi: ExtensionAPI): void {
         `Started: ${info.startedAt}`,
         `Activity: ${info.lastActivityAt}`,
       ];
-      if (info.model) lines.push(`Model: ${info.model}`);
       if (info.result) {
         if (info.result.finalText)
           lines.push(`\nResult:\n${info.result.finalText}`);

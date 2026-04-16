@@ -32,8 +32,6 @@ export function canTransition(from: RunStatus, to: RunStatus): boolean {
 export interface RequestFile {
   runId: string;
   name: string;
-  model?: string;
-  cwd?: string;
   createdAt: string; // ISO 8601
 }
 
@@ -45,8 +43,6 @@ export interface StatusFile {
   startedAt: string;
   lastActivityAt: string;
   pid?: number;
-  model?: string;
-  cwd?: string;
 
   // Finalization marker
   finalizingAt?: string;
@@ -74,8 +70,6 @@ export interface ResultFile {
 
 export interface SpawnEnvoyInput {
   prompt: string;
-  model?: string;
-  cwd?: string;
 }
 
 export interface SpawnEnvoyOutput {
@@ -92,7 +86,6 @@ export interface ListEnvoysEntry {
   startedAt: string;
   lastActivityAt: string;
   runDir: string;
-  model?: string;
 }
 
 export interface GetEnvoyResult {
@@ -109,7 +102,6 @@ export interface GetEnvoyOutput {
   startedAt: string;
   lastActivityAt: string;
   runDir: string;
-  model?: string;
   result?: GetEnvoyResult;
 }
 

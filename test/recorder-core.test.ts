@@ -17,8 +17,6 @@ let runDir: string;
 const SAMPLE_REQUEST: RequestFile = {
   runId: "r1",
   name: "bold-hawk",
-  model: "test-model",
-  cwd: "/tmp",
   createdAt: "2026-01-01T00:00:00.000Z",
 };
 
@@ -29,8 +27,6 @@ const SAMPLE_STATUS: StatusFile = {
   startedAt: "2026-01-01T00:00:00.000Z",
   lastActivityAt: "2026-01-01T00:00:00.000Z",
   pid: 12345,
-  model: "test-model",
-  cwd: "/tmp",
 };
 
 beforeEach(() => {
@@ -249,13 +245,13 @@ describe("finalizeOnce", () => {
     );
   });
 
-  it("defaults model from status.json when not set on recorder", () => {
+  it("defaults model to undefined when not set on recorder", () => {
     const recorder = new RecorderCore(runDir);
     recorder.setExitCode(0);
     recorder.finalizeOnce();
 
     const result = readResult(runDir)!;
-    expect(result.model).toBe("test-model"); // from SAMPLE_STATUS
+    expect(result.model).toBeUndefined();
   });
 });
 
