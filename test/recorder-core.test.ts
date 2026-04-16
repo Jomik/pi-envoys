@@ -17,7 +17,6 @@ let runDir: string;
 const SAMPLE_REQUEST: RequestFile = {
   runId: "r1",
   name: "bold-hawk",
-  prompt: "do the thing",
   model: "test-model",
   cwd: "/tmp",
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -87,15 +86,6 @@ describe("recordActivity", () => {
     const second = readStatus(runDir)!.lastActivityAt;
 
     expect(second).toBe(first);
-  });
-});
-
-// ── readPromptFromRequest ──
-
-describe("readPromptFromRequest", () => {
-  it("reads prompt from request.json", () => {
-    const recorder = new RecorderCore(runDir);
-    expect(recorder.readPromptFromRequest()).toBe("do the thing");
   });
 });
 

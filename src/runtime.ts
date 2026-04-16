@@ -1,10 +1,11 @@
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { allocateRunId, generateName } from "./naming.js";
 import type { EnvoyLauncher } from "./process.js";
 import {
   createRunDir,
   listRunIds,
-  readRequest,
+  promptPath,
   readResult,
   readStatus,
   removeRunDir,
@@ -72,12 +73,14 @@ export class EnvoyRuntime {
     const request: RequestFile = {
       runId,
       name,
-      prompt: input.prompt,
       model: input.model,
       cwd: input.cwd,
       createdAt: now,
     };
     writeRequest(runDir, request);
+
+    // Write prompt as a standalone file — used as @file arg for the child
+    writeFileSync(promptPath(runDir), input.prompt, "utf-8");
 
     const status: StatusFile = {
       runId,
@@ -137,7 +140,6 @@ export class EnvoyRuntime {
   async getRun(runId: string): Promise<GetEnvoyOutput> {
     const runDir = join(this.storeRoot, runId);
     const status = await this.reconcileRun(runId);
-    const request = readRequest(runDir);
 
     const output: GetEnvoyOutput = {
       runId: status.runId,
@@ -147,7 +149,6 @@ export class EnvoyRuntime {
       lastActivityAt: status.lastActivityAt,
       runDir,
       model: status.model,
-      prompt: request?.prompt,
     };
 
     if (isTerminal(status.status)) {

@@ -12,7 +12,7 @@
  * - PiLauncher spawns a detached child pi process
  * - Child loads the extension via -e, picks up --envoy flag
  * - Recorder updates lastActivityAt
- * - Prompt transport: input event transforms "." to real prompt
+ * - Prompt transport: prompt.md read via @file CLI syntax
  * - Child finalizes to terminal state with result.json
  * - stderr.log is created
  * - remove cleans up

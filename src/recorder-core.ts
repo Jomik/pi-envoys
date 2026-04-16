@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { readStatus, writeResult, writeStatus } from "./store.js";
 import type { ResultFile, StatusFile } from "./types.js";
 
@@ -76,18 +74,6 @@ export class RecorderCore {
 
   setSignal(sig: string): void {
     this.signal = sig;
-  }
-
-  // ── Prompt transform ──
-
-  /**
-   * Read the real prompt from request.json.
-   * Used by the input event handler to replace the dummy "." prompt.
-   */
-  readPromptFromRequest(): string {
-    const raw = readFileSync(join(this.runDir, "request.json"), "utf-8");
-    const request = JSON.parse(raw);
-    return request.prompt;
   }
 
   // ── Terminal finalization ──

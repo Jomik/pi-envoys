@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, openSync } from "node:fs";
 import { join } from "node:path";
-import { stderrLogPath } from "./store.js";
+import { promptPath, stderrLogPath } from "./store.js";
 import type { RequestFile } from "./types.js";
 
 // ── Launcher interface ──
@@ -115,8 +115,8 @@ export class PiLauncher implements EnvoyLauncher {
       piArgs.push("--model", request.model);
     }
 
-    // Dummy prompt — the real prompt comes from request.json via the input event
-    piArgs.push(".");
+    // Pass prompt via @file so pi reads it natively
+    piArgs.push(`@${promptPath(runDir)}`);
 
     const invocation = this.piCommand
       ? {
