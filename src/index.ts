@@ -201,13 +201,6 @@ function registerTools(pi: ExtensionAPI): void {
         `Activity: ${info.lastActivityAt}`,
       ];
       if (info.model) lines.push(`Model: ${info.model}`);
-      if (info.prompt) {
-        const preview =
-          info.prompt.length > 200
-            ? `${info.prompt.slice(0, 200)}...`
-            : info.prompt;
-        lines.push(`Prompt: ${preview}`);
-      }
       if (info.result) {
         if (info.result.finalText)
           lines.push(`\nResult:\n${info.result.finalText}`);
@@ -355,14 +348,6 @@ function initRecorder(pi: ExtensionAPI, runDir: string): void {
 
   // Mark recorder started immediately
   recorder.markRecorderStarted();
-
-  // Prompt transform: replace dummy "." with real prompt from request.json
-  pi.on("input", (event) => {
-    if (event.text === ".") {
-      const realPrompt = recorder.readPromptFromRequest();
-      return { action: "transform" as const, text: realPrompt };
-    }
-  });
 
   // Activity tracking
   pi.on("agent_start", () => {

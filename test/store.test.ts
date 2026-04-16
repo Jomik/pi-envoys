@@ -5,6 +5,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,6 +20,7 @@ let mockAgentDir: string;
 import {
   createRunDir,
   listRunIds,
+  promptPath,
   readJsonOrUndefined,
   readRequest,
   readResult,
@@ -116,7 +118,6 @@ describe("writeJsonAtomic / readJsonOrUndefined", () => {
 const SAMPLE_REQUEST: RequestFile = {
   runId: "r1",
   name: "bold-hawk",
-  prompt: "do the thing",
   model: "test-model",
   cwd: "/tmp",
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -177,9 +178,15 @@ describe("per-run file helpers", () => {
     writeRequest(runDir, SAMPLE_REQUEST);
     writeStatus(runDir, SAMPLE_STATUS);
     writeResult(runDir, SAMPLE_RESULT);
+    writeFileSync(promptPath(runDir), "do the thing", "utf-8");
 
     const files = readdirSync(runDir).sort();
-    expect(files).toEqual(["request.json", "result.json", "status.json"]);
+    expect(files).toEqual([
+      "prompt.md",
+      "request.json",
+      "result.json",
+      "status.json",
+    ]);
   });
 });
 

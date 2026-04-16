@@ -1,10 +1,11 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FakeLauncher } from "../src/process.js";
 import { EnvoyRuntime } from "../src/runtime.js";
 import {
+  promptPath,
   readRequest,
   readResult,
   readStatus,
@@ -45,17 +46,19 @@ describe("spawnRun", () => {
     expect(out.runDir).toBe(join(tmpRoot, out.runId));
   });
 
-  it("persists request.json with prompt", async () => {
+  it("persists request.json and prompt.md", async () => {
     const out = await runtime.spawnRun({
       prompt: "hello world",
       model: "gpt-5",
     });
     const req = readRequest(out.runDir);
     expect(req).toBeDefined();
-    expect(req!.prompt).toBe("hello world");
     expect(req!.model).toBe("gpt-5");
     expect(req!.runId).toBe(out.runId);
     expect(req!.name).toBe(out.name);
+
+    const prompt = readFileSync(promptPath(out.runDir), "utf-8");
+    expect(prompt).toBe("hello world");
   });
 
   it("persists status.json with pid", async () => {
@@ -126,7 +129,6 @@ describe("getRun", () => {
     expect(info.name).toBe(out.name);
     expect(info.status).toBe("running");
     expect(info.model).toBe("m1");
-    expect(info.prompt).toBe("hello world");
     expect(info.result).toBeUndefined();
   });
 

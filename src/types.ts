@@ -32,7 +32,6 @@ export function canTransition(from: RunStatus, to: RunStatus): boolean {
 export interface RequestFile {
   runId: string;
   name: string;
-  prompt: string;
   model?: string;
   cwd?: string;
   createdAt: string; // ISO 8601
@@ -111,7 +110,6 @@ export interface GetEnvoyOutput {
   lastActivityAt: string;
   runDir: string;
   model?: string;
-  prompt?: string;
   result?: GetEnvoyResult;
 }
 

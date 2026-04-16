@@ -64,6 +64,10 @@ export function readJsonOrUndefined<T>(filePath: string): T | undefined {
 
 // ── Per-run file helpers ──
 
+export function promptPath(runDir: string): string {
+  return join(runDir, "prompt.md");
+}
+
 export function requestPath(runDir: string): string {
   return join(runDir, "request.json");
 }

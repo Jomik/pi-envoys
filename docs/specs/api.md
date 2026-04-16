@@ -87,7 +87,6 @@ Returns:
 - `lastActivityAt`
 - `runDir`
 - optional `model`
-- optional `prompt` — the original launch prompt
 - optional `result` — present for terminal runs, containing:
   - `finalText` — the envoy's final response
   - `errorMessage` — present when the run failed
