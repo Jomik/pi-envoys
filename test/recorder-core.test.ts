@@ -49,21 +49,16 @@ afterEach(() => {
 // ── markRecorderStarted ──
 
 describe("markRecorderStarted", () => {
-  it("writes recorderStartedAt", () => {
-    const recorder = new RecorderCore(runDir);
-    recorder.markRecorderStarted();
-
-    const status = readStatus(runDir)!;
-    expect(status.recorderStartedAt).toBeDefined();
-    expect(new Date(status.recorderStartedAt!).getTime()).toBeGreaterThan(0);
-  });
-
   it("updates lastActivityAt", () => {
     const recorder = new RecorderCore(runDir);
+    const beforeStatus = readStatus(runDir)!;
+    const before = beforeStatus.lastActivityAt;
     recorder.markRecorderStarted();
 
     const status = readStatus(runDir)!;
-    expect(status.lastActivityAt).toBe(status.recorderStartedAt);
+    expect(new Date(status.lastActivityAt).getTime()).toBeGreaterThanOrEqual(
+      new Date(before).getTime(),
+    );
   });
 });
 
@@ -116,7 +111,6 @@ describe("finalizeOnce", () => {
     const status = readStatus(runDir)!;
     expect(status.status).toBe("completed");
     expect(status.finalizingAt).toBeDefined();
-    expect(status.terminalAt).toBeDefined();
 
     const result = readResult(runDir)!;
     expect(result.status).toBe("completed");
@@ -241,7 +235,6 @@ describe("finalizeOnce", () => {
     // Manually mark as completed first
     const status = readStatus(runDir)!;
     status.status = "completed";
-    status.terminalAt = new Date().toISOString();
     writeStatus(runDir, status);
 
     const recorder = new RecorderCore(runDir);

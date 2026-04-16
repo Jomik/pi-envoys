@@ -61,7 +61,6 @@ describe("stopRun", () => {
     await runtime.stopRun(out.runId);
 
     const finalStatus = readStatus(out.runDir)!;
-    expect(finalStatus.stopRequestedAt).toBeDefined();
     expect(finalStatus.termSignalSentAt).toBeDefined();
     // SIGKILL is sent because FakeLauncher ignores SIGTERM
     expect(finalStatus.killSignalSentAt).toBeDefined();
@@ -100,7 +99,6 @@ describe("stopRun", () => {
       exitCode: 0,
     });
     status.status = "completed";
-    status.terminalAt = new Date().toISOString();
     writeStatus(out.runDir, status);
 
     const result = await runtime.stopRun(out.runId);
@@ -126,7 +124,6 @@ describe("stopRun", () => {
         });
         const s = readStatus(out.runDir)!;
         s.status = "failed";
-        s.terminalAt = new Date().toISOString();
         writeStatus(out.runDir, s);
         launcher.kill(p);
       }
@@ -183,7 +180,6 @@ describe("removeRun", () => {
       exitCode: 0,
     });
     status.status = "completed";
-    status.terminalAt = new Date().toISOString();
     writeStatus(out.runDir, status);
 
     await runtime.removeRun(out.runId);

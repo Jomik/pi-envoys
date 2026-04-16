@@ -32,11 +32,10 @@ export class RecorderCore {
 
   // ── Lifecycle markers ──
 
-  /** Write recorderStartedAt marker. Call from session_start. */
+  /** Update lastActivityAt on recorder start. Call from session_start. */
   markRecorderStarted(): void {
     const status = this.readStatusOrThrow();
-    status.recorderStartedAt = new Date().toISOString();
-    status.lastActivityAt = status.recorderStartedAt;
+    status.lastActivityAt = new Date().toISOString();
     writeStatus(this.runDir, status);
   }
 
@@ -161,7 +160,6 @@ export class RecorderCore {
 
       // Step 3: terminal status.json
       status.status = terminalStatus;
-      status.terminalAt = now;
       status.lastActivityAt = now;
       writeStatus(this.runDir, status);
     } catch {

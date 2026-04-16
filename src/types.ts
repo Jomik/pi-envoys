@@ -49,20 +49,12 @@ export interface StatusFile {
   model?: string;
   cwd?: string;
 
-  // Recorder markers
-  recorderStartedAt?: string;
+  // Finalization marker
   finalizingAt?: string;
 
-  // Terminal timestamp (set once on terminal transition)
-  terminalAt?: string;
-
   // Stop-flow evidence
-  stopRequestedAt?: string;
   termSignalSentAt?: string;
   killSignalSentAt?: string;
-
-  // Observation timestamps
-  processExitObservedAt?: string;
 }
 
 /** `result.json` — written once at terminal time */
