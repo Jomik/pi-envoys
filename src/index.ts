@@ -1,5 +1,8 @@
+import type { ThinkingLevel } from "@mariozechner/pi-agent-core";
+import type { Api, Model } from "@mariozechner/pi-ai";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
+import { discoverAgents, loadAgentDefinition } from "./agents.js";
 import { PiLauncher } from "./process.js";
 import { RecorderCore } from "./recorder-core.js";
 import { EnvoyRuntime } from "./runtime.js";
@@ -32,12 +35,76 @@ export default function (pi: ExtensionAPI) {
 
 // ── Parent mode: tools ──
 
+const VALID_THINKING_LEVELS: ReadonlySet<string> = new Set<ThinkingLevel>([
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+]);
+
+/**
+ * Find an exact model reference match.
+ * Supports bare model ID or canonical `provider/model` reference.
+ * Ambiguous bare IDs (multiple providers) return `undefined`.
+ *
+ * Mirrors `findExactModelReferenceMatch` from pi-coding-agent's
+ * model-resolver (not re-exported from the package public API).
+ */
+function findModelMatch(
+  modelRef: string,
+  models: Model<Api>[],
+): Model<Api> | undefined {
+  const ref = modelRef.trim().toLowerCase();
+  if (!ref) return undefined;
+
+  // Try canonical provider/id
+  const canonical = models.filter(
+    (m) => `${m.provider}/${m.id}`.toLowerCase() === ref,
+  );
+  if (canonical.length === 1) return canonical[0];
+  if (canonical.length > 1) return undefined;
+
+  // Try provider/id with slash split
+  const slash = ref.indexOf("/");
+  if (slash !== -1) {
+    const provider = ref.substring(0, slash).trim();
+    const id = ref.substring(slash + 1).trim();
+    if (provider && id) {
+      const matches = models.filter(
+        (m) =>
+          m.provider.toLowerCase() === provider && m.id.toLowerCase() === id,
+      );
+      if (matches.length === 1) return matches[0];
+      if (matches.length > 1) return undefined;
+    }
+  }
+
+  // Try bare id
+  const idMatches = models.filter((m) => m.id.toLowerCase() === ref);
+  return idMatches.length === 1 ? idMatches[0] : undefined;
+}
 function registerTools(pi: ExtensionAPI): void {
   const storeRoot = resolveRunStoreRoot();
   const launcher = new PiLauncher(import.meta.dirname);
   const runtime = new EnvoyRuntime(storeRoot, launcher);
 
   // ── spawn_envoy ──
+
+  // Discover agents at registration time for LLM visibility in promptGuidelines.
+  // Re-runs on /reload (session_start fires again). Between reloads, new definitions
+  // can still be used via loadAgentDefinition (reads from disk on each spawn).
+  const agents = discoverAgents();
+  const agentGuidelines: string[] = [];
+  if (agents.length > 0) {
+    const listing = agents.map((a) =>
+      a.description ? `- ${a.name}: ${a.description}` : `- ${a.name}`,
+    );
+    agentGuidelines.push(
+      `Available agents for spawn_envoy:\n${listing.join("\n")}`,
+    );
+  }
 
   pi.registerTool({
     name: "spawn_envoy",
@@ -52,16 +119,51 @@ function registerTools(pi: ExtensionAPI): void {
       "Use envoys for independent, parallelizable work. Call spawn_envoy once per task, then pass all runIds to wait_envoys.",
       "Use wait_envoys when you need results before continuing. Use list_envoys and get_envoy when you can do other work while envoys run.",
       "Do not spawn an envoy for work that depends on another envoy's output. Wait for the first to complete, inspect its result, then proceed.",
+      ...agentGuidelines,
     ],
     parameters: Type.Object({
       prompt: Type.String({
         description: "Exact task payload for the envoy run",
       }),
+      agent: Type.Optional(
+        Type.String({
+          description:
+            "Agent definition name. Resolves to a named launch configuration that bundles role-specific behavior.",
+        }),
+      ),
     }),
-    async execute(_toolCallId, params) {
-      const result = await runtime.spawnRun({
-        prompt: params.prompt,
-      });
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      // Resolve agent definition if provided
+      let agentDef: ReturnType<typeof loadAgentDefinition> | undefined;
+      if (params.agent) {
+        agentDef = loadAgentDefinition(params.agent);
+
+        // Validate model against parent's model registry
+        if (agentDef.model) {
+          const available = ctx.modelRegistry.getAvailable();
+          const match = findModelMatch(agentDef.model, available);
+          if (!match) {
+            throw new Error(
+              `Agent "${agentDef.name}": model "${agentDef.model}" not found or ambiguous in available models`,
+            );
+          }
+        }
+
+        // Validate thinking level
+        if (
+          agentDef.thinking &&
+          !VALID_THINKING_LEVELS.has(agentDef.thinking)
+        ) {
+          throw new Error(
+            `Agent "${agentDef.name}": invalid thinking level "${agentDef.thinking}"`,
+          );
+        }
+      }
+
+      const result = await runtime.spawnRun(
+        { prompt: params.prompt, agent: params.agent },
+        agentDef,
+      );
 
       // Record in session history for session-scoped visibility.
       // Best-effort: spawn succeeded regardless; the run is in the store.
@@ -77,6 +179,9 @@ function registerTools(pi: ExtensionAPI): void {
         `Status: ${result.status}`,
         `Run directory: ${result.runDir}`,
       ];
+      if (params.agent) {
+        lines.push(`Agent: ${params.agent}`);
+      }
       if (sessionTrackingFailed) {
         lines.push(
           '\u26a0 Failed to record in session history. Use list_envoys scope "all" to find this run.',

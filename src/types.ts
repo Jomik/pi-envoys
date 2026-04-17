@@ -33,6 +33,7 @@ export interface RequestFile {
   runId: string;
   name: string;
   createdAt: string; // ISO 8601
+  agent?: string;
 }
 
 /** `status.json` — mutated throughout the run lifecycle */
@@ -70,6 +71,7 @@ export interface ResultFile {
 
 export interface SpawnEnvoyInput {
   prompt: string;
+  agent?: string;
 }
 
 export interface SpawnEnvoyOutput {
