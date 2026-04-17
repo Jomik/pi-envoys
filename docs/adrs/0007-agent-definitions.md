@@ -5,7 +5,7 @@
 
 ## Context
 
-Envoys launch with a prompt. Supporting different roles (researcher, implementer, reviewer) requires configuring the child's system prompt, model, tools, skills, extensions, and thinking level.
+Envoys launch with a prompt. Supporting different roles (researcher, implementer, reviewer) requires configuring the child's system prompt, model, tools, skills, and thinking level.
 
 Four approaches were considered:
 
@@ -19,7 +19,7 @@ Four approaches were considered:
 
 ## Decision
 
-`spawn_envoy` gains an optional `agent` parameter. Agent definitions are named launch configurations — static files that bundle agent instructions, model, tools, skills, extensions, and thinking level. The caller references a definition by name; pi-envoys resolves and applies it.
+`spawn_envoy` gains an optional `agent` parameter. Agent definitions are named launch configurations — static files that bundle agent instructions, model, tools, skills, and thinking level. The caller references a definition by name; pi-envoys resolves and applies it.
 
 ```
 spawn_envoy(

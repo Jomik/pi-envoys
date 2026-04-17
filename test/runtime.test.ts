@@ -2,9 +2,11 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { AgentDefinition } from "../src/agents.js";
 import { FakeLauncher } from "../src/process.js";
 import { EnvoyRuntime } from "../src/runtime.js";
 import {
+  agentBodyPath,
   promptPath,
   readRequest,
   readResult,
@@ -66,6 +68,68 @@ describe("spawnRun", () => {
     expect(status!.status).toBe("running");
     expect(status!.pid).toBeGreaterThan(0);
     expect(status!.runId).toBe(out.runId);
+  });
+});
+
+describe("spawnRun with agent definition", () => {
+  const baseAgent: AgentDefinition = {
+    name: "researcher",
+    description: "Research agent",
+    model: "claude-sonnet-4",
+    tools: ["web_search", "fetch_content"],
+    skills: ["librarian"],
+    thinking: "high",
+    body: "You are a research agent.",
+    filePath: "/fake/agents/researcher.md",
+  };
+
+  it("writes agent-body.md when body is present", async () => {
+    const out = await runtime.spawnRun({ prompt: "task" }, baseAgent);
+    const body = readFileSync(agentBodyPath(out.runDir), "utf-8");
+    expect(body).toBe("You are a research agent.");
+  });
+
+  it("does not write agent-body.md when body is undefined", async () => {
+    const noBody: AgentDefinition = { ...baseAgent, body: undefined };
+    const out = await runtime.spawnRun({ prompt: "task" }, noBody);
+    expect(() => readFileSync(agentBodyPath(out.runDir))).toThrow();
+  });
+
+  it("persists agent name in request.json", async () => {
+    const out = await runtime.spawnRun({ prompt: "task" }, baseAgent);
+    const req = readRequest(out.runDir);
+    expect(req?.agent).toBe("researcher");
+  });
+
+  it("request.json has no agent field when no agent provided", async () => {
+    const out = await runtime.spawnRun({ prompt: "task" });
+    const req = readRequest(out.runDir);
+    expect(req?.agent).toBeUndefined();
+  });
+
+  it("passes agent definition to launcher", async () => {
+    // Capture the agent arg passed to launch
+    let capturedAgent: AgentDefinition | undefined;
+    const origLaunch = launcher.launch.bind(launcher);
+    launcher.launch = async (req, runDir, agent) => {
+      capturedAgent = agent;
+      return origLaunch(req, runDir, agent);
+    };
+
+    await runtime.spawnRun({ prompt: "task" }, baseAgent);
+    expect(capturedAgent).toBe(baseAgent);
+  });
+
+  it("does not pass agent to launcher when none provided", async () => {
+    let capturedAgent: AgentDefinition | undefined = baseAgent; // sentinel
+    const origLaunch = launcher.launch.bind(launcher);
+    launcher.launch = async (req, runDir, agent) => {
+      capturedAgent = agent;
+      return origLaunch(req, runDir, agent);
+    };
+
+    await runtime.spawnRun({ prompt: "task" });
+    expect(capturedAgent).toBeUndefined();
   });
 });
 

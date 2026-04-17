@@ -1,8 +1,10 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { AgentDefinition } from "./agents.js";
 import { allocateRunId, generateName } from "./naming.js";
 import type { EnvoyLauncher } from "./process.js";
 import {
+  agentBodyPath,
   createRunDir,
   listRunIds,
   promptPath,
@@ -63,7 +65,10 @@ export class EnvoyRuntime {
 
   // ── spawn ──
 
-  async spawnRun(input: SpawnEnvoyInput): Promise<SpawnEnvoyOutput> {
+  async spawnRun(
+    input: SpawnEnvoyInput,
+    agent?: AgentDefinition,
+  ): Promise<SpawnEnvoyOutput> {
     const runId = allocateRunId();
     const name = generateName();
     const now = new Date().toISOString();
@@ -74,11 +79,17 @@ export class EnvoyRuntime {
       runId,
       name,
       createdAt: now,
+      agent: agent?.name,
     };
     writeRequest(runDir, request);
 
     // Write prompt as a standalone file — used as @file arg for the child
     writeFileSync(promptPath(runDir), input.prompt, "utf-8");
+
+    // Write agent body as a standalone file — passed via --append-system-prompt
+    if (agent?.body) {
+      writeFileSync(agentBodyPath(runDir), agent.body, "utf-8");
+    }
 
     const status: StatusFile = {
       runId,
@@ -89,7 +100,7 @@ export class EnvoyRuntime {
     };
     writeStatus(runDir, status);
 
-    const { pid } = await this.launcher.launch(request, runDir);
+    const { pid } = await this.launcher.launch(request, runDir, agent);
 
     // Persist pid into status
     status.pid = pid;

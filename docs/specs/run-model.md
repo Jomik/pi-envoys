@@ -19,7 +19,7 @@ One envoy run maps to one `pi` subprocess. Each run executes in its own subproce
 
 ### Context
 
-Runs receive only the explicit launch payload: `prompt`. Hidden parent session state is not inherited.
+Runs receive only the explicit launch payload: `prompt` and optional `agent` name. When `agent` is specified, the agent definition configures the child subprocess (model, tools, skills, extensions, thinking, system prompt). Hidden parent session state is not inherited. See [agent definitions](agent-definitions.md).
 
 ### Persistence
 

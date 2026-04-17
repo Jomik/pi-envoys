@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
 import { closeSync, existsSync, openSync } from "node:fs";
 import { join } from "node:path";
-import { promptPath, stderrLogPath } from "./store.js";
+import type { AgentDefinition } from "./agents.js";
+import { agentBodyPath, promptPath, stderrLogPath } from "./store.js";
 import type { RequestFile } from "./types.js";
 
 // ── Launcher interface ──
@@ -15,7 +16,11 @@ export interface LaunchResult {
  * Implementations: FakeLauncher (tests), PiLauncher (production, Phase C).
  */
 export interface EnvoyLauncher {
-  launch(request: RequestFile, runDir: string): Promise<LaunchResult>;
+  launch(
+    request: RequestFile,
+    runDir: string,
+    agent?: AgentDefinition,
+  ): Promise<LaunchResult>;
   isAlive(pid: number): boolean;
   sendSignal(pid: number, signal: "SIGTERM" | "SIGKILL"): void;
 }
@@ -31,7 +36,11 @@ export class FakeLauncher implements EnvoyLauncher {
 
   private nextPid = 90000;
 
-  async launch(_request: RequestFile, _runDir: string): Promise<LaunchResult> {
+  async launch(
+    _request: RequestFile,
+    _runDir: string,
+    _agent?: AgentDefinition,
+  ): Promise<LaunchResult> {
     const pid = this.nextPid++;
     this.alivePids.add(pid);
     return { pid };
@@ -97,11 +106,14 @@ export class PiLauncher implements EnvoyLauncher {
     private readonly piCommand?: { command: string; args: string[] },
   ) {}
 
-  async launch(_request: RequestFile, runDir: string): Promise<LaunchResult> {
+  async launch(
+    _request: RequestFile,
+    runDir: string,
+    agent?: AgentDefinition,
+  ): Promise<LaunchResult> {
     const piArgs: string[] = [
       "-p",
       "--no-session",
-      "--no-extensions",
       "--no-skills",
       "--no-prompt-templates",
       "--no-themes",
@@ -110,6 +122,21 @@ export class PiLauncher implements EnvoyLauncher {
       "--envoy",
       runDir,
     ];
+
+    // Agent definition flags (after base flags, before @prompt)
+    if (agent) {
+      if (agent.model) piArgs.push("--model", agent.model);
+      if (agent.tools) {
+        piArgs.push("--tools", agent.tools.join(","));
+      }
+      if (agent.skills) {
+        for (const s of agent.skills) piArgs.push("--skill", s);
+      }
+      if (agent.thinking) piArgs.push("--thinking", agent.thinking);
+      if (agent.body) {
+        piArgs.push("--append-system-prompt", agentBodyPath(runDir));
+      }
+    }
 
     // Pass prompt via @file so pi reads it natively
     piArgs.push(`@${promptPath(runDir)}`);

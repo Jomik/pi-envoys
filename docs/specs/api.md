@@ -22,6 +22,7 @@ Starts one fresh isolated envoy run.
 
 Input:
 - `prompt` — exact task payload for the run
+- optional `agent` — name of an agent definition to configure the child subprocess (see [agent definitions](agent-definitions.md))
 
 Behavior:
 1. allocate a new `runId`

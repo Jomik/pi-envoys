@@ -68,6 +68,10 @@ export function promptPath(runDir: string): string {
   return join(runDir, "prompt.md");
 }
 
+export function agentBodyPath(runDir: string): string {
+  return join(runDir, "agent-body.md");
+}
+
 export function requestPath(runDir: string): string {
   return join(runDir, "request.json");
 }
