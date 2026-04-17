@@ -118,8 +118,6 @@ describe("writeJsonAtomic / readJsonOrUndefined", () => {
 const SAMPLE_REQUEST: RequestFile = {
   runId: "r1",
   name: "bold-hawk",
-  model: "test-model",
-  cwd: "/tmp",
   createdAt: "2026-01-01T00:00:00.000Z",
 };
 
@@ -130,8 +128,6 @@ const SAMPLE_STATUS: StatusFile = {
   startedAt: "2026-01-01T00:00:00.000Z",
   lastActivityAt: "2026-01-01T00:00:01.000Z",
   pid: 12345,
-  model: "test-model",
-  cwd: "/tmp",
 };
 
 const SAMPLE_RESULT: ResultFile = {
@@ -141,7 +137,6 @@ const SAMPLE_RESULT: ResultFile = {
   finishedAt: "2026-01-01T00:00:05.000Z",
   exitCode: 0,
   finalText: "Done.",
-  model: "test-model",
 };
 
 describe("per-run file helpers", () => {

@@ -73,8 +73,6 @@ export class EnvoyRuntime {
     const request: RequestFile = {
       runId,
       name,
-      model: input.model,
-      cwd: input.cwd,
       createdAt: now,
     };
     writeRequest(runDir, request);
@@ -88,8 +86,6 @@ export class EnvoyRuntime {
       status: "running",
       startedAt: now,
       lastActivityAt: now,
-      model: input.model,
-      cwd: input.cwd,
     };
     writeStatus(runDir, status);
 
@@ -128,7 +124,6 @@ export class EnvoyRuntime {
         startedAt: status.startedAt,
         lastActivityAt: status.lastActivityAt,
         runDir,
-        model: status.model,
       });
     }
 
@@ -148,7 +143,6 @@ export class EnvoyRuntime {
       startedAt: status.startedAt,
       lastActivityAt: status.lastActivityAt,
       runDir,
-      model: status.model,
     };
 
     if (isTerminal(status.status)) {
@@ -369,7 +363,6 @@ export class EnvoyRuntime {
       name: status.name,
       status: terminalStatus,
       finishedAt: now,
-      model: status.model,
       ...resultExtra,
     };
     writeResult(runDir, result);

@@ -139,7 +139,7 @@ export class RecorderCore {
         signal: this.signal,
         finalText: this.finalText,
         errorMessage: this.errorMessage,
-        model: this.model ?? status.model,
+        model: this.model,
         usage: this.usage,
       };
       writeResult(this.runDir, result);

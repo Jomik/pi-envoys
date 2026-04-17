@@ -49,11 +49,9 @@ describe("spawnRun", () => {
   it("persists request.json and prompt.md", async () => {
     const out = await runtime.spawnRun({
       prompt: "hello world",
-      model: "gpt-5",
     });
     const req = readRequest(out.runDir);
     expect(req).toBeDefined();
-    expect(req!.model).toBe("gpt-5");
     expect(req!.runId).toBe(out.runId);
     expect(req!.name).toBe(out.name);
 
@@ -68,14 +66,6 @@ describe("spawnRun", () => {
     expect(status!.status).toBe("running");
     expect(status!.pid).toBeGreaterThan(0);
     expect(status!.runId).toBe(out.runId);
-  });
-
-  it("passes optional cwd through", async () => {
-    const out = await runtime.spawnRun({ prompt: "x", cwd: "/some/dir" });
-    const req = readRequest(out.runDir);
-    expect(req!.cwd).toBe("/some/dir");
-    const status = readStatus(out.runDir);
-    expect(status!.cwd).toBe("/some/dir");
   });
 });
 
@@ -95,12 +85,11 @@ describe("listRuns", () => {
   });
 
   it("returns correct fields", async () => {
-    const out = await runtime.spawnRun({ prompt: "test", model: "m1" });
+    const out = await runtime.spawnRun({ prompt: "test" });
     const [entry] = await runtime.listRuns();
     expect(entry.runId).toBe(out.runId);
     expect(entry.name).toBe(out.name);
     expect(entry.status).toBe("running");
-    expect(entry.model).toBe("m1");
     expect(entry.runDir).toBe(out.runDir);
     expect(entry.startedAt).toBeDefined();
     expect(entry.lastActivityAt).toBeDefined();
@@ -122,13 +111,12 @@ describe("listRuns", () => {
 
 describe("getRun", () => {
   it("returns full state for a running envoy", async () => {
-    const out = await runtime.spawnRun({ prompt: "hello world", model: "m1" });
+    const out = await runtime.spawnRun({ prompt: "hello world" });
     const info = await runtime.getRun(out.runId);
 
     expect(info.runId).toBe(out.runId);
     expect(info.name).toBe(out.name);
     expect(info.status).toBe("running");
-    expect(info.model).toBe("m1");
     expect(info.result).toBeUndefined();
   });
 

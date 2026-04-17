@@ -62,7 +62,6 @@ async function listSessionScoped(): Promise<ListEnvoysEntry[]> {
       startedAt: info.startedAt,
       lastActivityAt: info.lastActivityAt,
       runDir: info.runDir,
-      model: info.model,
     });
   }
   return runs;

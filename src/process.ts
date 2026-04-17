@@ -97,7 +97,7 @@ export class PiLauncher implements EnvoyLauncher {
     private readonly piCommand?: { command: string; args: string[] },
   ) {}
 
-  async launch(request: RequestFile, runDir: string): Promise<LaunchResult> {
+  async launch(_request: RequestFile, runDir: string): Promise<LaunchResult> {
     const piArgs: string[] = [
       "-p",
       "--no-session",
@@ -110,10 +110,6 @@ export class PiLauncher implements EnvoyLauncher {
       "--envoy",
       runDir,
     ];
-
-    if (request.model) {
-      piArgs.push("--model", request.model);
-    }
 
     // Pass prompt via @file so pi reads it natively
     piArgs.push(`@${promptPath(runDir)}`);
@@ -130,7 +126,7 @@ export class PiLauncher implements EnvoyLauncher {
     const child = spawn(invocation.command, invocation.args, {
       detached: true,
       stdio: ["ignore", "ignore", stderrFd],
-      cwd: request.cwd ?? process.cwd(),
+      cwd: process.cwd(),
       env: { ...process.env },
     });
 

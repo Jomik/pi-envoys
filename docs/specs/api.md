@@ -22,8 +22,6 @@ Starts one fresh isolated envoy run.
 
 Input:
 - `prompt` — exact task payload for the run
-- optional `model` — model selector for the subprocess
-- optional `cwd`
 
 Behavior:
 1. allocate a new `runId`
@@ -63,7 +61,6 @@ Returns per run:
 - `startedAt`
 - `lastActivityAt`
 - `runDir`
-- optional `model`
 
 `lastActivityAt` is the most recent time the runtime observed meaningful run activity.
 
@@ -86,7 +83,6 @@ Returns:
 - `startedAt`
 - `lastActivityAt`
 - `runDir`
-- optional `model`
 - optional `result` — present for terminal runs, containing:
   - `finalText` — the envoy's final response
   - `errorMessage` — present when the run failed
