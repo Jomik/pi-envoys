@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, openSync } from "node:fs";
+import { closeSync, existsSync, openSync } from "node:fs";
 import { join } from "node:path";
 import { promptPath, stderrLogPath } from "./store.js";
 import type { RequestFile } from "./types.js";
@@ -136,6 +136,7 @@ export class PiLauncher implements EnvoyLauncher {
     }
 
     child.unref();
+    closeSync(stderrFd);
 
     return { pid };
   }
