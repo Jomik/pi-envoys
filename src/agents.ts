@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import type { ThinkingLevel } from "@mariozechner/pi-agent-core";
+import type { Api, Model } from "@mariozechner/pi-ai";
 import { getAgentDir, parseFrontmatter } from "@mariozechner/pi-coding-agent";
 
 // ── Constants ──
@@ -124,4 +125,77 @@ export function loadAgentDefinition(name: string): AgentDefinition {
     body,
     filePath,
   };
+}
+
+// ── Spawn validation helpers ──
+
+export const VALID_THINKING_LEVELS: ReadonlySet<string> =
+  new Set<ThinkingLevel>(["off", "minimal", "low", "medium", "high", "xhigh"]);
+
+/**
+ * Find an exact model reference match.
+ * Supports bare model ID or canonical `provider/model` reference.
+ * Ambiguous bare IDs (multiple providers) return `undefined`.
+ *
+ * Mirrors `findExactModelReferenceMatch` from pi-coding-agent's
+ * model-resolver (not re-exported from the package public API).
+ */
+export function findModelMatch(
+  modelRef: string,
+  models: Model<Api>[],
+): Model<Api> | undefined {
+  const ref = modelRef.trim().toLowerCase();
+  if (!ref) return undefined;
+
+  // Try canonical provider/id
+  const canonical = models.filter(
+    (m) => `${m.provider}/${m.id}`.toLowerCase() === ref,
+  );
+  if (canonical.length === 1) return canonical[0];
+  if (canonical.length > 1) return undefined;
+
+  // Try provider/id with slash split
+  const slash = ref.indexOf("/");
+  if (slash !== -1) {
+    const provider = ref.substring(0, slash).trim();
+    const id = ref.substring(slash + 1).trim();
+    if (provider && id) {
+      const matches = models.filter(
+        (m) =>
+          m.provider.toLowerCase() === provider && m.id.toLowerCase() === id,
+      );
+      if (matches.length === 1) return matches[0];
+      if (matches.length > 1) return undefined;
+    }
+  }
+
+  // Try bare id
+  const idMatches = models.filter((m) => m.id.toLowerCase() === ref);
+  return idMatches.length === 1 ? idMatches[0] : undefined;
+}
+
+/**
+ * Validate an agent definition's model and thinking level for spawning.
+ * Throws on validation failure with descriptive error messages.
+ */
+export function validateAgentForSpawn(
+  agentDef: AgentDefinition,
+  availableModels: Model<Api>[],
+): void {
+  // Validate model against available models
+  if (agentDef.model) {
+    const match = findModelMatch(agentDef.model, availableModels);
+    if (!match) {
+      throw new Error(
+        `Agent "${agentDef.name}": model "${agentDef.model}" not found or ambiguous in available models`,
+      );
+    }
+  }
+
+  // Validate thinking level
+  if (agentDef.thinking && !VALID_THINKING_LEVELS.has(agentDef.thinking)) {
+    throw new Error(
+      `Agent "${agentDef.name}": invalid thinking level "${agentDef.thinking}"`,
+    );
+  }
 }

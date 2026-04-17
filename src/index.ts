@@ -1,10 +1,20 @@
-import type { ThinkingLevel } from "@mariozechner/pi-agent-core";
-import type { Api, Model } from "@mariozechner/pi-ai";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { discoverAgents, loadAgentDefinition } from "./agents.js";
+import {
+  discoverAgents,
+  loadAgentDefinition,
+  validateAgentForSpawn,
+} from "./agents.js";
+import {
+  formatGetResult,
+  formatListResult,
+  formatRemoveResult,
+  formatSpawnResult,
+  formatStopResult,
+  formatWaitResult,
+} from "./format.js";
 import { PiLauncher } from "./process.js";
-import { RecorderCore } from "./recorder-core.js";
+import { initRecorder } from "./recorder.js";
 import { EnvoyRuntime } from "./runtime.js";
 import { extractSpawnedRunIds } from "./session-scope.js";
 import { resolveRunStoreRoot } from "./store.js";
@@ -35,56 +45,6 @@ export default function (pi: ExtensionAPI) {
 
 // ── Parent mode: tools ──
 
-const VALID_THINKING_LEVELS: ReadonlySet<string> = new Set<ThinkingLevel>([
-  "off",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-]);
-
-/**
- * Find an exact model reference match.
- * Supports bare model ID or canonical `provider/model` reference.
- * Ambiguous bare IDs (multiple providers) return `undefined`.
- *
- * Mirrors `findExactModelReferenceMatch` from pi-coding-agent's
- * model-resolver (not re-exported from the package public API).
- */
-function findModelMatch(
-  modelRef: string,
-  models: Model<Api>[],
-): Model<Api> | undefined {
-  const ref = modelRef.trim().toLowerCase();
-  if (!ref) return undefined;
-
-  // Try canonical provider/id
-  const canonical = models.filter(
-    (m) => `${m.provider}/${m.id}`.toLowerCase() === ref,
-  );
-  if (canonical.length === 1) return canonical[0];
-  if (canonical.length > 1) return undefined;
-
-  // Try provider/id with slash split
-  const slash = ref.indexOf("/");
-  if (slash !== -1) {
-    const provider = ref.substring(0, slash).trim();
-    const id = ref.substring(slash + 1).trim();
-    if (provider && id) {
-      const matches = models.filter(
-        (m) =>
-          m.provider.toLowerCase() === provider && m.id.toLowerCase() === id,
-      );
-      if (matches.length === 1) return matches[0];
-      if (matches.length > 1) return undefined;
-    }
-  }
-
-  // Try bare id
-  const idMatches = models.filter((m) => m.id.toLowerCase() === ref);
-  return idMatches.length === 1 ? idMatches[0] : undefined;
-}
 function registerTools(pi: ExtensionAPI): void {
   const storeRoot = resolveRunStoreRoot();
   const launcher = new PiLauncher(import.meta.dirname);
@@ -133,31 +93,11 @@ function registerTools(pi: ExtensionAPI): void {
       ),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      // Resolve agent definition if provided
+      // Resolve and validate agent definition if provided
       let agentDef: ReturnType<typeof loadAgentDefinition> | undefined;
       if (params.agent) {
         agentDef = loadAgentDefinition(params.agent);
-
-        // Validate model against parent's model registry
-        if (agentDef.model) {
-          const available = ctx.modelRegistry.getAvailable();
-          const match = findModelMatch(agentDef.model, available);
-          if (!match) {
-            throw new Error(
-              `Agent "${agentDef.name}": model "${agentDef.model}" not found or ambiguous in available models`,
-            );
-          }
-        }
-
-        // Validate thinking level
-        if (
-          agentDef.thinking &&
-          !VALID_THINKING_LEVELS.has(agentDef.thinking)
-        ) {
-          throw new Error(
-            `Agent "${agentDef.name}": invalid thinking level "${agentDef.thinking}"`,
-          );
-        }
+        validateAgentForSpawn(agentDef, ctx.modelRegistry.getAvailable());
       }
 
       const result = await runtime.spawnRun(
@@ -174,24 +114,7 @@ function registerTools(pi: ExtensionAPI): void {
         sessionTrackingFailed = true;
       }
 
-      const lines = [
-        `Envoy spawned: ${result.name} (${result.runId})`,
-        `Status: ${result.status}`,
-        `Run directory: ${result.runDir}`,
-      ];
-      if (params.agent) {
-        lines.push(`Agent: ${params.agent}`);
-      }
-      if (sessionTrackingFailed) {
-        lines.push(
-          '\u26a0 Failed to record in session history. Use list_envoys scope "all" to find this run.',
-        );
-      }
-
-      return {
-        content: [{ type: "text", text: lines.join("\n") }],
-        details: result,
-      };
+      return formatSpawnResult(result, params.agent, sessionTrackingFailed);
     },
   });
 
@@ -246,29 +169,7 @@ function registerTools(pi: ExtensionAPI): void {
         }
       }
 
-      if (runs.length === 0) {
-        const qualifier = scope === "session" ? " in this session" : "";
-        return {
-          content: [{ type: "text", text: `No envoy runs found${qualifier}.` }],
-          details: [] as ListEnvoysEntry[],
-        };
-      }
-
-      const lines = runs.map((r) => {
-        const parts = [
-          `${r.name} (${r.runId})`,
-          `status: ${r.status}`,
-          `started: ${r.startedAt}`,
-          `activity: ${r.lastActivityAt}`,
-        ];
-        parts.push(`dir: ${r.runDir}`);
-        return parts.join("  |  ");
-      });
-
-      return {
-        content: [{ type: "text", text: lines.join("\n") }],
-        details: runs,
-      };
+      return formatListResult(runs, scope);
     },
   });
 
@@ -288,26 +189,7 @@ function registerTools(pi: ExtensionAPI): void {
     }),
     async execute(_toolCallId, params) {
       const info = await runtime.getRun(params.runId);
-
-      const lines = [
-        `${info.name} (${info.runId})`,
-        `Status: ${info.status}`,
-        `Started: ${info.startedAt}`,
-        `Activity: ${info.lastActivityAt}`,
-      ];
-      if (info.result) {
-        if (info.result.finalText)
-          lines.push(`\nResult:\n${info.result.finalText}`);
-        if (info.result.errorMessage)
-          lines.push(`Error: ${info.result.errorMessage}`);
-        if (info.result.exitCode != null)
-          lines.push(`Exit code: ${info.result.exitCode}`);
-      }
-
-      return {
-        content: [{ type: "text", text: lines.join("\n") }],
-        details: info,
-      };
+      return formatGetResult(info);
     },
   });
 
@@ -360,26 +242,7 @@ function registerTools(pi: ExtensionAPI): void {
         },
       );
 
-      // Format final output
-      const lines: string[] = [];
-      if (result.timedOut)
-        lines.push("\u26a0 Wait timed out. Returning current state.\n");
-
-      for (const r of result.results) {
-        lines.push(`${r.name} (${r.runId}): ${r.status}`);
-        if (r.result?.finalText) {
-          lines.push(r.result.finalText);
-        }
-        if (r.result?.errorMessage) {
-          lines.push(`Error: ${r.result.errorMessage}`);
-        }
-        lines.push("");
-      }
-
-      return {
-        content: [{ type: "text", text: lines.join("\n").trim() }],
-        details: result,
-      };
+      return formatWaitResult(result);
     },
   });
 
@@ -399,15 +262,7 @@ function registerTools(pi: ExtensionAPI): void {
     }),
     async execute(_toolCallId, params) {
       const status = await runtime.stopRun(params.runId);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Envoy ${status.name} (${status.runId}): ${status.status}`,
-          },
-        ],
-        details: status,
-      };
+      return formatStopResult(status);
     },
   });
 
@@ -427,137 +282,7 @@ function registerTools(pi: ExtensionAPI): void {
     }),
     async execute(_toolCallId, params) {
       await runtime.removeRun(params.runId);
-      return {
-        content: [{ type: "text", text: `Envoy ${params.runId} removed.` }],
-        details: { runId: params.runId },
-      };
+      return formatRemoveResult(params.runId);
     },
-  });
-}
-
-// ── Child mode: recorder ──
-
-function initRecorder(pi: ExtensionAPI, runDir: string): void {
-  const recorder = new RecorderCore(runDir);
-
-  // Mark recorder started immediately
-  recorder.markRecorderStarted();
-
-  // Activity tracking
-  pi.on("agent_start", () => {
-    recorder.recordActivity();
-  });
-
-  pi.on("message_update", (event) => {
-    recorder.recordActivity();
-
-    // Collect assistant text incrementally
-    if (event.message.role === "assistant") {
-      for (const part of event.message.content) {
-        if (part.type === "text") {
-          recorder.setFinalText(part.text);
-        }
-      }
-    }
-  });
-
-  pi.on("message_end", (event) => {
-    recorder.recordActivity();
-
-    // Collect model and usage from assistant messages
-    if (event.message.role === "assistant") {
-      const msg = event.message;
-      if (msg.model) recorder.setModel(msg.model);
-      if (msg.usage) {
-        recorder.setUsage({
-          input: msg.usage.input,
-          output: msg.usage.output,
-          cacheRead: msg.usage.cacheRead,
-          cacheWrite: msg.usage.cacheWrite,
-          cost: msg.usage.cost,
-          totalTokens: msg.usage.totalTokens,
-        });
-      }
-      if (msg.errorMessage) recorder.setErrorMessage(msg.errorMessage);
-
-      // Collect final text
-      for (const part of msg.content) {
-        if (part.type === "text") {
-          recorder.setFinalText(part.text);
-        }
-      }
-    }
-  });
-
-  pi.on("tool_execution_start", () => {
-    recorder.recordActivity();
-  });
-
-  pi.on("tool_execution_end", () => {
-    recorder.recordActivity();
-  });
-
-  // Agent end — collect final state
-  pi.on("agent_end", (event) => {
-    recorder.recordActivity();
-
-    // Extract final assistant text from the last assistant message
-    for (let i = event.messages.length - 1; i >= 0; i--) {
-      const msg = event.messages[i];
-      if (msg.role === "assistant") {
-        for (const part of msg.content) {
-          if (part.type === "text") {
-            recorder.setFinalText(part.text);
-            break;
-          }
-        }
-        break;
-      }
-    }
-
-    // Clean exit
-    recorder.setExitCode(0);
-  });
-
-  // Session shutdown — finalize
-  pi.on("session_shutdown", () => {
-    recorder.finalizeOnce();
-  });
-
-  // Failure-path finalization hooks
-  //
-  // Installing handlers for SIGTERM/SIGINT/uncaughtException suppresses
-  // Node's default termination. We must process.exit() after finalizing
-  // to avoid leaving a zombie process with terminal files on disk.
-
-  process.on("uncaughtException", (err) => {
-    recorder.setErrorMessage(`uncaughtException: ${err.message}`);
-    recorder.setExitCode(1);
-    recorder.finalizeOnce("failed");
-    process.exit(1);
-  });
-
-  process.on("unhandledRejection", (reason) => {
-    recorder.setErrorMessage(`unhandledRejection: ${reason}`);
-    recorder.setExitCode(1);
-    recorder.finalizeOnce("failed");
-    process.exit(1);
-  });
-
-  process.on("SIGTERM", () => {
-    recorder.setSignal("SIGTERM");
-    recorder.finalizeOnce(); // resolveTerminalStatus checks parent stop evidence
-    process.exit(143); // 128 + 15 (SIGTERM)
-  });
-
-  process.on("SIGINT", () => {
-    recorder.setSignal("SIGINT");
-    recorder.finalizeOnce(); // resolveTerminalStatus checks parent stop evidence
-    process.exit(130); // 128 + 2 (SIGINT)
-  });
-
-  process.on("exit", (code) => {
-    if (code != null) recorder.setExitCode(code);
-    recorder.finalizeOnce();
   });
 }
